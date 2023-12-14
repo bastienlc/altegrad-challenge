@@ -1,4 +1,6 @@
+import torch
 from torch import nn
+from torch.utils.data import DataLoader
 from torch_geometric.nn import GCNConv, global_mean_pool
 from transformers import AutoModel
 
@@ -42,11 +44,11 @@ class TextEncoder(nn.Module):
         return encoded_text.last_hidden_state[:, 0, :]
 
 
-class Model(nn.Module):
+class BaselineModel(nn.Module):
     def __init__(
         self, model_name, num_node_features, nout, nhid, graph_hidden_channels
     ):
-        super(Model, self).__init__()
+        super(BaselineModel, self).__init__()
         self.graph_encoder = GraphEncoder(
             num_node_features, nout, nhid, graph_hidden_channels
         )
@@ -62,3 +64,26 @@ class Model(nn.Module):
 
     def get_graph_encoder(self):
         return self.graph_encoder
+
+
+def get_embeddings(
+    graph_encoder: nn.Module,
+    text_encoder: nn.Module,
+    test_loader: DataLoader,
+    test_text_loader: DataLoader,
+    device: torch.device,
+):
+    graph_embeddings = []
+    for batch in test_loader:
+        for output in graph_encoder(batch.to(device)):
+            graph_embeddings.append(output.tolist())
+
+    text_embeddings = []
+    for batch in test_text_loader:
+        for output in text_encoder(
+            batch["input_ids"].to(device),
+            attention_mask=batch["attention_mask"].to(device),
+        ):
+            text_embeddings.append(output.tolist())
+
+    return graph_embeddings, text_embeddings
