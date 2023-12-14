@@ -95,7 +95,7 @@ def train(
         )
         if best_validation_loss == val_loss:
             print("validation loss improoved saving checkpoint...")
-            save_path = os.path.join("./", "model" + str(i) + ".pt")
+            save_path = os.path.join("./outputs/", "model" + str(i) + ".pt")
             torch.save(
                 {
                     "epoch": i,

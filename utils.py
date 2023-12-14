@@ -8,4 +8,4 @@ def solution_from_embeddings(graph_embeddings, text_embeddings, save_to="solutio
     solution = pd.DataFrame(similarity)
     solution["ID"] = solution.index
     solution = solution[["ID"] + [col for col in solution.columns if col != "ID"]]
-    solution.to_csv(save_to, index=False)
+    solution.to_csv(f"outputs/{save_to}", index=False)
