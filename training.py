@@ -5,6 +5,7 @@ from typing import Union
 import torch
 import torch.nn as nn
 from torch import optim
+from torch.utils.tensorboard import SummaryWriter
 from torch_geometric.loader import DataLoader as GeometricDataLoader
 
 CE = nn.CrossEntropyLoss()
@@ -25,13 +26,14 @@ def train(
     device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
     load_from: Union[str, None] = None,
 ):
+    writer = SummaryWriter()
     epoch = 0
     loss = 0
     losses = []
     count_iter = 0
     time1 = time.time()
     printEvery = 50
-    best_validation_loss = 1000000
+    best_validation_loss = 1e100
 
     if load_from is not None:
         checkpoint = torch.load(load_from)
@@ -66,13 +68,15 @@ def train(
 
             count_iter += 1
             if count_iter % printEvery == 0:
+                loss /= printEvery
                 time2 = time.time()
                 print(
                     "Iteration: {0}, Time: {1:.4f} s, training loss: {2:.4f}".format(
-                        count_iter, time2 - time1, loss / printEvery
+                        count_iter, time2 - time1, loss
                     )
                 )
                 losses.append(loss)
+                writer.add_scalar("Loss/train", loss, epoch)
                 loss = 0
 
         model.eval()
@@ -88,11 +92,14 @@ def train(
             )
             current_loss = contrastive_loss(x_graph, x_text)
             val_loss += current_loss.item()
-        best_validation_loss = min(best_validation_loss, val_loss)
+        val_loss /= len(val_loader)
         print(
             "-----EPOCH" + str(i + 1) + "----- done.  Validation loss: ",
-            str(val_loss / len(val_loader)),
+            str(val_loss),
         )
+        writer.add_scalar("Loss/val", val_loss, epoch)
+
+        best_validation_loss = min(best_validation_loss, val_loss)
         if best_validation_loss == val_loss:
             print("validation loss improoved saving checkpoint...")
             save_path = os.path.join("./outputs/", "model" + str(i) + ".pt")
