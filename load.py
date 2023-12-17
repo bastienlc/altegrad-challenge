@@ -7,13 +7,15 @@ from transformers import PreTrainedTokenizer
 from dataloader import GraphDataset, GraphTextDataset, TextDataset
 
 
-def load_dataset(tokenizer: PreTrainedTokenizer, batch_size: int = 32, dummy=False):
-    gt = np.load("./data/token_embedding_dict.npy", allow_pickle=True)[()]
+def load_dataset(
+    tokenizer: PreTrainedTokenizer, batch_size: int = 32, dummy=False, root="."
+):
+    gt = np.load(f"{root}/data/token_embedding_dict.npy", allow_pickle=True)[()]
     train_dataset = GraphTextDataset(
-        root="./data/", gt=gt, split="train", tokenizer=tokenizer
+        root=f"{root}/data/", gt=gt, split="train", tokenizer=tokenizer
     )
     val_dataset = GraphTextDataset(
-        root="./data/", gt=gt, split="val", tokenizer=tokenizer
+        root=f"{root}/data/", gt=gt, split="val", tokenizer=tokenizer
     )
 
     if dummy:
@@ -23,8 +25,12 @@ def load_dataset(tokenizer: PreTrainedTokenizer, batch_size: int = 32, dummy=Fal
         val_loader = DataLoader(val_subset, batch_size=batch_size, shuffle=True)
 
     else:
-        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-        val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True)
+        train_loader = DataLoader(
+            train_dataset, batch_size=batch_size, shuffle=True, num_workers=4
+        )
+        val_loader = DataLoader(
+            val_dataset, batch_size=batch_size, shuffle=True, num_workers=4
+        )
 
     return train_loader, val_loader
 
@@ -50,10 +56,10 @@ def load_test_dataset(
 
     else:
         test_loader = DataLoader(
-            test_cids_dataset, batch_size=batch_size, shuffle=False
+            test_cids_dataset, batch_size=batch_size, shuffle=False, num_workers=2
         )
         test_text_loader = TorchDataLoader(
-            test_text_dataset, batch_size=batch_size, shuffle=False
+            test_text_dataset, batch_size=batch_size, shuffle=False, num_workers=2
         )
 
     return test_loader, test_text_loader

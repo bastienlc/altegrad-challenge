@@ -11,6 +11,23 @@ from torch_geometric.loader import DataLoader as GeometricDataLoader
 from utils import contrastive_loss, get_metrics
 
 
+def process_batch(batch, model, optimizer, device):
+    input_ids = batch.input_ids
+    batch.pop("input_ids")
+    attention_mask = batch.attention_mask
+    batch.pop("attention_mask")
+    graph_batch = batch
+
+    x_graph, x_text = model(
+        graph_batch.to(device), input_ids.to(device), attention_mask.to(device)
+    )
+    current_loss = contrastive_loss(x_graph, x_text)
+    optimizer.zero_grad()
+    current_loss.backward()
+    optimizer.step()
+    return current_loss.item()
+
+
 def train(
     model: nn.Module,
     optimizer: optim.Optimizer,
@@ -44,20 +61,7 @@ def train(
         print("--------------------EPOCH {}--------------------".format(e))
         model.train()
         for batch_idx, batch in enumerate(train_loader):
-            input_ids = batch.input_ids
-            batch.pop("input_ids")
-            attention_mask = batch.attention_mask
-            batch.pop("attention_mask")
-            graph_batch = batch
-
-            x_graph, x_text = model(
-                graph_batch.to(device), input_ids.to(device), attention_mask.to(device)
-            )
-            current_loss = contrastive_loss(x_graph, x_text)
-            optimizer.zero_grad()
-            current_loss.backward()
-            optimizer.step()
-            loss += current_loss.item()
+            loss += process_batch(batch, model, optimizer, device)
 
             if batch_idx % print_every == 0 and batch_idx > 0:
                 loss /= print_every
@@ -73,13 +77,14 @@ def train(
 
         step = (e + 1) * len(train_loader)
 
+        print(
+            "Computing metrics on validation set... (time={:.4f}s)".format(
+                time.time() - time1
+            )
+        )
         val_loss, val_score = get_metrics(model, val_loader)
         writer.add_scalar("Loss/val", val_loss, step)
         writer.add_scalar("Score/val", val_score, step)
-
-        train_loss, train_score = get_metrics(model, train_loader)
-        writer.add_scalar("Loss/train", train_loss, step)
-        writer.add_scalar("Score/train", train_score, step)
 
         writer.flush()
 
@@ -98,13 +103,11 @@ def train(
                     "model_state_dict": model.state_dict(),
                     "optimizer_state_dict": optimizer.state_dict(),
                     "val_loss": val_loss,
-                    "train_loss": train_loss,
                     "val_score": val_score,
-                    "train_score": train_score,
                 },
                 save_path,
             )
             print("done : {}".format(save_path))
 
     writer.close()
-    return save_path
+    return save_path, best_validation_loss, val_score
