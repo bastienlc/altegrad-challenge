@@ -8,13 +8,7 @@ from torch import optim
 from torch.utils.tensorboard import SummaryWriter
 from torch_geometric.loader import DataLoader as GeometricDataLoader
 
-CE = nn.CrossEntropyLoss()
-
-
-def contrastive_loss(v1, v2):
-    logits = torch.matmul(v1, torch.transpose(v2, 0, 1))
-    labels = torch.arange(logits.shape[0], device=v1.device)
-    return CE(logits, labels) + CE(torch.transpose(logits, 0, 1), labels)
+from utils import contrastive_loss, get_metrics
 
 
 def train(
@@ -30,27 +24,26 @@ def train(
     epoch = 0
     loss = 0
     losses = []
-    count_iter = 0
     time1 = time.time()
-    printEvery = 50
+    print_every = 50
     best_validation_loss = 1e100
 
     if load_from is not None:
         checkpoint = torch.load(load_from)
         model.load_state_dict(checkpoint["model_state_dict"])
         optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
-        best_validation_loss = checkpoint["validation_accuracy"]
+        best_validation_loss = checkpoint["val_loss"]
         epoch = checkpoint["epoch"]
         print(
-            "loaded model from: {}, best validation loss: {}".format(
+            "Loaded model from {}, best validation loss={}".format(
                 load_from, best_validation_loss
             )
         )
 
-    for i in range(epoch + 1, nb_epochs):
-        print("-----EPOCH{}-----".format(i + 1))
+    for e in range(epoch + 1, nb_epochs):
+        print("--------------------EPOCH {}--------------------".format(e))
         model.train()
-        for batch in train_loader:
+        for batch_idx, batch in enumerate(train_loader):
             input_ids = batch.input_ids
             batch.pop("input_ids")
             attention_mask = batch.attention_mask
@@ -66,53 +59,52 @@ def train(
             optimizer.step()
             loss += current_loss.item()
 
-            count_iter += 1
-            if count_iter % printEvery == 0:
-                loss /= printEvery
+            if batch_idx % print_every == 0 and batch_idx > 0:
+                loss /= print_every
                 time2 = time.time()
                 print(
                     "Iteration: {0}, Time: {1:.4f} s, training loss: {2:.4f}".format(
-                        count_iter, time2 - time1, loss
+                        batch_idx, time2 - time1, loss
                     )
                 )
                 losses.append(loss)
-                writer.add_scalar("Loss/train", loss, epoch)
+                writer.add_scalar("Loss/train", loss, e * len(train_loader) + batch_idx)
                 loss = 0
 
-        model.eval()
-        val_loss = 0
-        for batch in val_loader:
-            input_ids = batch.input_ids
-            batch.pop("input_ids")
-            attention_mask = batch.attention_mask
-            batch.pop("attention_mask")
-            graph_batch = batch
-            x_graph, x_text = model(
-                graph_batch.to(device), input_ids.to(device), attention_mask.to(device)
-            )
-            current_loss = contrastive_loss(x_graph, x_text)
-            val_loss += current_loss.item()
-        val_loss /= len(val_loader)
+        step = (e + 1) * len(train_loader)
+
+        val_loss, val_score = get_metrics(model, val_loader)
+        writer.add_scalar("Loss/val", val_loss, step)
+        writer.add_scalar("Score/val", val_score, step)
+
+        train_loss, train_score = get_metrics(model, train_loader)
+        writer.add_scalar("Loss/train", train_loss, step)
+        writer.add_scalar("Score/train", train_score, step)
+
+        writer.flush()
+
         print(
-            "-----EPOCH" + str(i + 1) + "----- done.  Validation loss: ",
-            str(val_loss),
+            "Epoch " + str(e) + " finished with val_loss " + str(val_loss),
         )
-        writer.add_scalar("Loss/val", val_loss, epoch)
 
         best_validation_loss = min(best_validation_loss, val_loss)
+
         if best_validation_loss == val_loss:
-            print("validation loss improoved saving checkpoint...")
-            save_path = os.path.join("./outputs/", "model" + str(i) + ".pt")
+            print("Saving checkpoint... ", end="")
+            save_path = os.path.join("./outputs/", "model" + str(e) + ".pt")
             torch.save(
                 {
-                    "epoch": i,
+                    "epoch": e,
                     "model_state_dict": model.state_dict(),
                     "optimizer_state_dict": optimizer.state_dict(),
-                    "validation_accuracy": val_loss,
-                    "loss": loss,
+                    "val_loss": val_loss,
+                    "train_loss": train_loss,
+                    "val_score": val_score,
+                    "train_score": train_score,
                 },
                 save_path,
             )
-            print("checkpoint saved to: {}".format(save_path))
+            print("done : {}".format(save_path))
 
+    writer.close()
     return save_path
