@@ -10,7 +10,7 @@ from transformers import AutoTokenizer
 
 from load import load_dataset
 from models.baseline import BaselineModel
-from training import process_batch
+from training_utils import process_batch
 from utils import get_metrics
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -22,7 +22,7 @@ def train_wrapper(config):
 
     model = BaselineModel(
         model_name=model_name,
-        num_node_features=config["num_node_features"],
+        num_node_features=300,
         nout=768,
         nhid=config["nhid"],
         graph_hidden_channels=config["graph_hidden_channels"],
@@ -74,7 +74,6 @@ def train_wrapper(config):
 
 
 config = {
-    "num_node_features": tune.choice([150, 300, 450]),
     "nhid": tune.choice([150, 300, 450]),
     "graph_hidden_channels": tune.choice([150, 300, 450]),
     "lr": tune.loguniform(5e-6, 1e-4),
