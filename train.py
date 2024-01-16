@@ -31,5 +31,4 @@ save_path, _, _ = train(
     val_loader,
     nb_epochs=10,
     device=device,
-    load_from="outputs/saved/model5.pt",
 )
