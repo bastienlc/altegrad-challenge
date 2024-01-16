@@ -6,8 +6,6 @@ from sklearn.metrics import label_ranking_average_precision_score
 from sklearn.metrics.pairwise import cosine_similarity
 from torch_geometric.loader import DataLoader as GeometricDataLoader
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
 CE = nn.CrossEntropyLoss()
 
 
@@ -26,7 +24,11 @@ def contrastive_loss(v1, v2):
     return CE(logits, labels) + CE(torch.transpose(logits, 0, 1), labels)
 
 
-def get_metrics(model: nn.Module, loader: GeometricDataLoader):
+def get_metrics(
+    model: nn.Module,
+    loader: GeometricDataLoader,
+    device: torch.device = torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+):
     model.eval()
     graph_embeddings = []
     text_embeddings = []
@@ -40,7 +42,9 @@ def get_metrics(model: nn.Module, loader: GeometricDataLoader):
             graph_batch = batch
 
             x_graph, x_text = model(
-                graph_batch.to(device), input_ids.to(device), attention_mask.to(device)
+                graph_batch.to(device),
+                input_ids.to(device),
+                attention_mask.to(device),
             )
 
             loss += contrastive_loss(x_graph, x_text).item()

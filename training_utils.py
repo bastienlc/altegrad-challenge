@@ -82,7 +82,7 @@ def train(
                 time.time() - time1
             )
         )
-        val_loss, val_score = get_metrics(model, val_loader)
+        val_loss, val_score = get_metrics(model, val_loader, device=device)
         writer.add_scalar("Loss/val", val_loss, step)
         writer.add_scalar("Score/val", val_score, step)
 

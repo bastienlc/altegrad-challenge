@@ -1,12 +1,11 @@
 import torch
+import torch.nn as nn
 from torch import optim
 from transformers import AutoTokenizer
 
 from load import load_dataset
 from models.baseline import BaselineModel
 from training_utils import train
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 model_name = "distilbert-base-uncased"
 tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -18,7 +17,17 @@ model = BaselineModel(
     nout=768,
     nhid=300,
     graph_hidden_channels=450,
-).to(device)
+)
+
+if torch.cuda.device_count() > 1:
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    print("Using", torch.cuda.device_count(), "GPU(s)")
+    model = nn.DataParallel(model)
+    model.to(device)
+
+else:
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model.to(device)
 
 optimizer = optim.AdamW(
     model.parameters(), lr=5e-5, betas=(0.9, 0.999), weight_decay=0.01
