@@ -90,6 +90,8 @@ def train(
 
         print(
             "Epoch " + str(e) + " finished with val_loss " + str(val_loss),
+            "and val_score",
+            val_score,
         )
 
         best_validation_loss = min(best_validation_loss, val_loss)
