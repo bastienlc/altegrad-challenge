@@ -7,7 +7,16 @@ from .pyGAT import GAT
 
 
 class GATEncoder(nn.Module):
-    def __init__(self, num_node_features, nout, nhid, graph_hidden_channels):
+    def __init__(
+        self,
+        num_node_features,
+        nout,
+        nhid,
+        graph_hidden_channels,
+        nheads=10,
+        dropout=0.1,
+        alpha=0.02,
+    ):
         super(GATEncoder, self).__init__()
         self.nhid = nhid
         self.nout = nout
@@ -15,9 +24,9 @@ class GATEncoder(nn.Module):
             num_node_features,
             graph_hidden_channels,
             graph_hidden_channels,
-            0,
-            0.01,
-            5,
+            dropout,
+            alpha,
+            nheads,
         )
         self.mol_hidden1 = nn.Linear(graph_hidden_channels, nhid)
         self.mol_hidden2 = nn.Linear(nhid, nout)
@@ -39,11 +48,25 @@ class GATEncoder(nn.Module):
 
 class GATModel(nn.Module):
     def __init__(
-        self, model_name, num_node_features, nout, nhid, graph_hidden_channels
+        self,
+        model_name,
+        num_node_features,
+        nout,
+        nhid,
+        graph_hidden_channels,
+        nheads=10,
+        dropout=0.1,
+        alpha=0.02,
     ):
         super(GATModel, self).__init__()
         self.graph_encoder = GATEncoder(
-            num_node_features, nout, nhid, graph_hidden_channels
+            num_node_features,
+            nout,
+            nhid,
+            graph_hidden_channels,
+            nheads=nheads,
+            dropout=dropout,
+            alpha=alpha,
         )
         self.text_encoder = TextEncoder(model_name)
 
