@@ -1,8 +1,25 @@
 import torch
+from sentence_transformers import SentenceTransformer
 from torch import nn
 from torch.utils.data import DataLoader
 from torch_geometric.nn import GCNConv, global_mean_pool
 from transformers import AutoModel
+
+
+def mean_pooling(embeddings: torch.Tensor, attention_mask: torch.Tensor):
+    """Mean Pooling - Take attention mask into account for correct averaging
+    source : https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2
+
+    model_output: (batch_size, sequence_length, hidden_size)
+    attention_mask: (batch_size, sequence_length)
+    """
+    hidden_size = embeddings.shape[2]
+    input_mask_expanded = (
+        attention_mask.unsqueeze(-1).expand(-1, -1, hidden_size).float()
+    )
+    return torch.sum(embeddings * input_mask_expanded, 1) / torch.clamp(
+        input_mask_expanded.sum(1), min=1e-9
+    )
 
 
 class GraphEncoder(nn.Module):
@@ -19,9 +36,9 @@ class GraphEncoder(nn.Module):
         self.mol_hidden2 = nn.Linear(nhid, nout)
 
     def forward(self, graph_batch):
-        x = graph_batch.x
-        edge_index = graph_batch.edge_index
-        batch = graph_batch.batch
+        x = graph_batch.x  # nodes features (nb_graphs, embeddings_size)
+        edge_index = graph_batch.edge_index  # 'adjacency matrix' (2, nb_edges_in_batch)
+        batch = graph_batch.batch  # in what graph is each node (nb_graphs)
         x = self.conv1(x, edge_index)
         x = x.relu()
         x = self.conv2(x, edge_index)
@@ -36,11 +53,21 @@ class GraphEncoder(nn.Module):
 class TextEncoder(nn.Module):
     def __init__(self, model_name):
         super(TextEncoder, self).__init__()
-        self.bert = AutoModel.from_pretrained(model_name)
+        self.use_sentence_transformer = model_name in [
+            "sentence-transformers/all-MiniLM-L6-v2"
+        ]
+        self.model = AutoModel.from_pretrained(model_name)
 
     def forward(self, input_ids, attention_mask):
-        encoded_text = self.bert(input_ids, attention_mask=attention_mask)
-        return encoded_text.last_hidden_state[:, 0, :]
+        encoded_text = self.model(input_ids, attention_mask=attention_mask)
+
+        if self.use_sentence_transformer:
+            # In this case we can only use mean pooling
+            return mean_pooling(encoded_text.last_hidden_state, attention_mask)
+        else:
+            return encoded_text.last_hidden_state[
+                :, 0, :
+            ]  # This is the CLS token i.e. it is the embedding of the whole sentence. Mean pooling gives similar results.
 
 
 class BaselineModel(nn.Module):
