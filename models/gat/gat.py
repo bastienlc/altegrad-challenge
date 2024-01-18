@@ -11,7 +11,14 @@ class GATEncoder(nn.Module):
         super(GATEncoder, self).__init__()
         self.nhid = nhid
         self.nout = nout
-        self.gat = GAT(num_node_features, nhid, graph_hidden_channels, 0.1, 0.01, 10)
+        self.gat = GAT(
+            num_node_features,
+            graph_hidden_channels,
+            graph_hidden_channels,
+            0,
+            0.01,
+            5,
+        )
         self.mol_hidden1 = nn.Linear(graph_hidden_channels, nhid)
         self.mol_hidden2 = nn.Linear(nhid, nout)
 
