@@ -19,9 +19,9 @@ class GraphEncoder(nn.Module):
         self.mol_hidden2 = nn.Linear(nhid, nout)
 
     def forward(self, graph_batch):
-        x = graph_batch.x
-        edge_index = graph_batch.edge_index
-        batch = graph_batch.batch
+        x = graph_batch.x  # nodes features (nb_graphs, embeddings_size)
+        edge_index = graph_batch.edge_index  # 'adjacency matrix' (2, nb_edges_in_batch)
+        batch = graph_batch.batch  # in what graph is each node (nb_graphs)
         x = self.conv1(x, edge_index)
         x = x.relu()
         x = self.conv2(x, edge_index)
