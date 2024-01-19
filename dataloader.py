@@ -57,6 +57,10 @@ class GraphTextDataset(Dataset):
                     edge = (*map(int, line.split()),)
                     edge_index.append(edge)
                 else:
+                    if edge_index == []:
+                        edge_index = torch.empty((2, 0), dtype=torch.long)
+                    else:
+                        edge_index = torch.LongTensor(edge_index).T
                     break
             next(f)
             for line in f:  # get mol2vec features:
@@ -65,7 +69,7 @@ class GraphTextDataset(Dataset):
                     x.append(self.gt[substruct_id])
                 else:
                     x.append(self.gt["UNK"])
-            return torch.LongTensor(edge_index).T, torch.FloatTensor(x)
+            return edge_index, torch.FloatTensor(x)
 
     def process(self):
         i = 0
@@ -150,6 +154,10 @@ class GraphDataset(Dataset):
                     edge = (*map(int, line.split()),)
                     edge_index.append(edge)
                 else:
+                    if edge_index == []:
+                        edge_index = torch.empty((2, 0), dtype=torch.long)
+                    else:
+                        edge_index = torch.LongTensor(edge_index).T
                     break
             next(f)
             for line in f:
@@ -158,7 +166,7 @@ class GraphDataset(Dataset):
                     x.append(self.gt[substruct_id])
                 else:
                     x.append(self.gt["UNK"])
-            return torch.LongTensor(edge_index).T, torch.FloatTensor(x)
+            return edge_index, torch.FloatTensor(x)
 
     def process(self):
         i = 0
