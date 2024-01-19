@@ -1,6 +1,6 @@
 # This code originates from https://github.com/Diego999/pyGAT/
 # and is licensed under the MIT license.
-# ==============================================================================
+# ============================================================
 
 import torch
 import torch.nn as nn
@@ -12,13 +12,12 @@ class GraphAttentionLayer(nn.Module):
     Simple GAT layer, similar to https://arxiv.org/abs/1710.10903
     """
 
-    def __init__(self, in_features, out_features, dropout, alpha, concat=True):
+    def __init__(self, in_features, out_features, dropout, alpha):
         super(GraphAttentionLayer, self).__init__()
         self.dropout = dropout
         self.in_features = in_features
         self.out_features = out_features
         self.alpha = alpha
-        self.concat = concat
 
         self.W = nn.Parameter(torch.empty(size=(in_features, out_features)))
         nn.init.xavier_uniform_(self.W.data, gain=1.414)
@@ -39,10 +38,7 @@ class GraphAttentionLayer(nn.Module):
         attention = F.dropout(attention, self.dropout, training=self.training)
         h_prime = torch.matmul(attention, Wh)
 
-        if self.concat:
-            return F.elu(h_prime)
-        else:
-            return h_prime
+        return h_prime
 
     def _prepare_attentional_mechanism_input(self, Wh):
         # Wh.shape (N, out_feature)
@@ -67,26 +63,24 @@ class GraphAttentionLayer(nn.Module):
 
 
 class GAT(nn.Module):
-    def __init__(self, nfeat, nhid, nclass, dropout, alpha, nheads):
+    def __init__(self, nfeat, nhid, nout, dropout, alpha, nheads):
         """Dense version of GAT."""
         super(GAT, self).__init__()
         self.dropout = dropout
 
         self.attentions = [
-            GraphAttentionLayer(nfeat, nhid, dropout=dropout, alpha=alpha, concat=True)
+            GraphAttentionLayer(nfeat, nhid, dropout=dropout, alpha=alpha)
             for _ in range(nheads)
         ]
         for i, attention in enumerate(self.attentions):
             self.add_module("attention_{}".format(i), attention)
 
         self.out_att = GraphAttentionLayer(
-            nhid * nheads, nclass, dropout=dropout, alpha=alpha, concat=False
+            nhid * nheads, nout, dropout=dropout, alpha=alpha
         )
 
     def forward(self, x, adj):
         x = F.dropout(x, self.dropout, training=self.training)
         x = torch.cat([att(x, adj) for att in self.attentions], dim=1)
         x = F.dropout(x, self.dropout, training=self.training)
-        # x = F.elu(self.out_att(x, adj))
-        # return F.log_softmax(x, dim=1)
         return self.out_att(x, adj)

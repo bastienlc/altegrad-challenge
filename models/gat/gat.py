@@ -11,30 +11,34 @@ class GATEncoder(nn.Module):
         self,
         num_node_features,
         nout,
-        nhid,
-        graph_hidden_channels,
-        nheads=10,
+        mlp_hid=1000,
+        att_hidden_dim=600,
+        att_out_dim=1000,
+        nheads=20,
         dropout=0.1,
         alpha=0.02,
     ):
         super(GATEncoder, self).__init__()
-        self.nhid = nhid
+        self.nhid = mlp_hid
         self.nout = nout
         self.gat = GAT(
             num_node_features,
-            graph_hidden_channels,
-            graph_hidden_channels,
+            att_hidden_dim,
+            att_out_dim,
             dropout,
             alpha,
             nheads,
         )
-        self.mol_hidden1 = nn.Linear(graph_hidden_channels, nhid)
-        self.mol_hidden2 = nn.Linear(nhid, nout)
+        self.mol_hidden1 = nn.Linear(att_out_dim, mlp_hid)
+        self.mol_hidden2 = nn.Linear(mlp_hid, nout)
 
     def forward(self, graph_batch):
         x = graph_batch.x  # nodes features (nb_nodes, embeddings_size)
         edge_index = graph_batch.edge_index  # 'adjacency matrix' (2, nb_edges_in_batch)
         batch = graph_batch.batch  # in what graph is each node (nb_nodes)
+
+        if edge_index.ndim == 1:
+            raise ValueError("edge_index should be of shape (2, nb_edges_in_batch)")
 
         adj = torch.zeros((x.shape[0], x.shape[0]), device=x.device)
         adj[edge_index[0], edge_index[1]] = 1
@@ -52,21 +56,11 @@ class GATModel(nn.Module):
         model_name,
         num_node_features,
         nout,
-        nhid,
-        graph_hidden_channels,
-        nheads=10,
-        dropout=0.1,
-        alpha=0.02,
     ):
         super(GATModel, self).__init__()
         self.graph_encoder = GATEncoder(
             num_node_features,
             nout,
-            nhid,
-            graph_hidden_channels,
-            nheads=nheads,
-            dropout=dropout,
-            alpha=alpha,
         )
         self.text_encoder = TextEncoder(model_name)
 
