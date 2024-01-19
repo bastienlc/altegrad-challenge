@@ -36,10 +36,12 @@ def train(
     nb_epochs: int = 5,
     device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
     load_from: Union[str, None] = None,
+    save_name: str = "model",
 ):
     writer = SummaryWriter()
     epoch = 0
     loss = 0
+    loss_averager = 0
     losses = []
     time1 = time.time()
     print_every = 50
@@ -50,10 +52,11 @@ def train(
         model.load_state_dict(checkpoint["model_state_dict"])
         optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
         best_validation_loss = checkpoint["val_loss"]
+        best_validation_score = checkpoint["val_score"]
         epoch = checkpoint["epoch"]
         print(
-            "Loaded model from {}, best validation loss={}".format(
-                load_from, best_validation_loss
+            "Loaded model from {}, best_validation_score={}, best validation loss={}".format(
+                load_from, best_validation_score, best_validation_loss
             )
         )
 
@@ -62,9 +65,10 @@ def train(
         model.train()
         for batch_idx, batch in enumerate(train_loader):
             loss += process_batch(batch, model, optimizer, device)
+            loss_averager += 1
 
             if batch_idx % print_every == 0 and batch_idx > 0:
-                loss /= print_every
+                loss /= loss_averager
                 time2 = time.time()
                 print(
                     "Iteration: {0}, Time: {1:.4f} s, training loss: {2:.4f}".format(
@@ -74,6 +78,7 @@ def train(
                 losses.append(loss)
                 writer.add_scalar("Loss/train", loss, e * len(train_loader) + batch_idx)
                 loss = 0
+                loss_averager = 0
 
         step = (e + 1) * len(train_loader)
 
@@ -95,10 +100,11 @@ def train(
         )
 
         best_validation_loss = min(best_validation_loss, val_loss)
+        best_validation_score = max(best_validation_score, val_score)
 
-        if best_validation_loss == val_loss:
+        if best_validation_loss == val_loss or best_validation_score == val_score:
             print("Saving checkpoint... ", end="")
-            save_path = os.path.join("./outputs/", "model" + str(e) + ".pt")
+            save_path = os.path.join("./outputs/", save_name + str(e) + ".pt")
             torch.save(
                 {
                     "epoch": e,
@@ -112,4 +118,4 @@ def train(
             print("done : {}".format(save_path))
 
     writer.close()
-    return save_path, best_validation_loss, val_score
+    return save_path, best_validation_loss, best_validation_score
