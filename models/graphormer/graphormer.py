@@ -2,7 +2,7 @@ from torch import nn
 from torch_geometric.nn import global_mean_pool
 
 from ..baseline import TextEncoder
-from .graphormer_pyg import Graphormer
+from .library import Graphormer
 
 
 class GraphormerEncoder(nn.Module):

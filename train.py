@@ -4,14 +4,14 @@ from transformers import AutoTokenizer
 
 from load import load_dataset
 from models.gat import GATModel
-from training_utils import train
+from utils import train
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 model_name = "sentence-transformers/all-MiniLM-L6-v2"
 embeddings_dim = 384
 tokenizer = AutoTokenizer.from_pretrained(model_name)
-train_loader, val_loader = load_dataset(tokenizer)
+train_loader, val_loader = load_dataset(tokenizer, features=["pathnn"])
 
 model = GATModel(
     model_name=model_name,

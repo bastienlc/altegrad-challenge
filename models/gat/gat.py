@@ -3,7 +3,7 @@ from torch import nn
 from torch_geometric.nn import global_mean_pool
 
 from ..baseline import TextEncoder
-from .pyGAT import GAT
+from .library import GAT
 
 
 class GATEncoder(nn.Module):

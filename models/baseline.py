@@ -1,5 +1,4 @@
 import torch
-from sentence_transformers import SentenceTransformer
 from torch import nn
 from torch.utils.data import DataLoader
 from torch_geometric.nn import GCNConv, global_mean_pool

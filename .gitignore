@@ -1,5 +1,6 @@
 *.pyc
-data/processed
+data/**
 outputs/
 runs/
 **/temp/**
+__pycache__
