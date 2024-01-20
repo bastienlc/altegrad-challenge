@@ -81,7 +81,7 @@ def fast_generate_paths2(g, cutoff, path_type, weights=None, undirected=True):
     return X, diameter, sp_dists
 
 
-def add_pathnn_data(data, path_type="all_simple_paths", cutoff=10):
+def add_pathnn_data(data, path_type="shortest_path", cutoff=10):
     G = ig.Graph.from_networkx(to_networkx(data, to_undirected=False))
     setattr(data, f"path_2", data.edge_index.T.flip(1))
 
