@@ -46,6 +46,7 @@ def train(
     time1 = time.time()
     print_every = 50
     best_validation_loss = 1e100
+    best_validation_score = 0
 
     if load_from is not None:
         checkpoint = torch.load(load_from)
