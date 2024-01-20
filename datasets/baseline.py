@@ -1,15 +1,26 @@
 import os
 import os.path as osp
 
+import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import Dataset as TorchDataset
 from torch_geometric.data import Data, Dataset
+from tqdm import tqdm
+
+from .pathnn import add_pathnn_data
 
 
 class GraphTextDataset(Dataset):
     def __init__(
-        self, root, gt, split, tokenizer=None, transform=None, pre_transform=None
+        self,
+        root,
+        gt,
+        split,
+        tokenizer=None,
+        transform=None,
+        pre_transform=None,
+        features=[],
     ):
         self.root = root
         self.gt = gt
@@ -20,6 +31,7 @@ class GraphTextDataset(Dataset):
         )
         self.description = self.description.set_index(0).to_dict()
         self.cids = list(self.description[1].keys())
+        self.features = features
 
         self.idx_to_cid = {}
         i = 0
@@ -69,11 +81,11 @@ class GraphTextDataset(Dataset):
                     x.append(self.gt[substruct_id])
                 else:
                     x.append(self.gt["UNK"])
-            return edge_index, torch.FloatTensor(x)
+            return edge_index, torch.FloatTensor(np.array(x))
 
     def process(self):
         i = 0
-        for raw_path in self.raw_paths:
+        for raw_path in tqdm(self.raw_paths):
             cid = int(raw_path.split("/")[-1][:-6])
             text_input = self.tokenizer(
                 [self.description[1][cid]],
@@ -90,6 +102,9 @@ class GraphTextDataset(Dataset):
                 input_ids=text_input["input_ids"],
                 attention_mask=text_input["attention_mask"],
             )
+
+            if "pathnn" in self.features:
+                data = add_pathnn_data(data)
 
             torch.save(data, osp.join(self.processed_dir, "data_{}.pt".format(cid)))
             i += 1
@@ -109,7 +124,9 @@ class GraphTextDataset(Dataset):
 
 
 class GraphDataset(Dataset):
-    def __init__(self, root, gt, split, transform=None, pre_transform=None):
+    def __init__(
+        self, root, gt, split, transform=None, pre_transform=None, features=[]
+    ):
         self.root = root
         self.gt = gt
         self.split = split
@@ -117,6 +134,7 @@ class GraphDataset(Dataset):
             os.path.join(self.root, split + ".txt"), sep="\t", header=None
         )
         self.cids = self.description[0].tolist()
+        self.features = features
 
         self.idx_to_cid = {}
         i = 0
@@ -166,14 +184,18 @@ class GraphDataset(Dataset):
                     x.append(self.gt[substruct_id])
                 else:
                     x.append(self.gt["UNK"])
-            return edge_index, torch.FloatTensor(x)
+            return edge_index, torch.FloatTensor(np.array(x))
 
     def process(self):
         i = 0
-        for raw_path in self.raw_paths:
+        for raw_path in tqdm(self.raw_paths):
             cid = int(raw_path.split("/")[-1][:-6])
             edge_index, x = self.process_graph(raw_path)
             data = Data(x=x, edge_index=edge_index)
+
+            if "pathnn" in self.features:
+                data = add_pathnn_data(data)
+
             torch.save(data, osp.join(self.processed_dir, "data_{}.pt".format(cid)))
             i += 1
 

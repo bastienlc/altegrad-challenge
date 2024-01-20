@@ -6,3 +6,4 @@ pandas
 scikit-learn
 ray
 sentence_transformers
+tqdm

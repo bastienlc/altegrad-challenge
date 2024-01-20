@@ -8,14 +8,22 @@ from datasets import GraphDataset, GraphTextDataset, TextDataset
 
 
 def load_dataset(
-    tokenizer: PreTrainedTokenizer, batch_size: int = 32, dummy=False, root="."
+    tokenizer: PreTrainedTokenizer,
+    batch_size: int = 32,
+    dummy=False,
+    root=".",
+    features=[],
 ):
     gt = np.load(f"{root}/data/token_embedding_dict.npy", allow_pickle=True)[()]
     train_dataset = GraphTextDataset(
-        root=f"{root}/data/", gt=gt, split="train", tokenizer=tokenizer
+        root=f"{root}/data/",
+        gt=gt,
+        split="train",
+        tokenizer=tokenizer,
+        features=features,
     )
     val_dataset = GraphTextDataset(
-        root=f"{root}/data/", gt=gt, split="val", tokenizer=tokenizer
+        root=f"{root}/data/", gt=gt, split="val", tokenizer=tokenizer, features=features
     )
 
     if dummy:
@@ -36,10 +44,12 @@ def load_dataset(
 
 
 def load_test_dataset(
-    tokenizer: PreTrainedTokenizer, batch_size: int = 32, dummy=False
+    tokenizer: PreTrainedTokenizer, batch_size: int = 32, dummy=False, features=[]
 ):
     gt = np.load("./data/token_embedding_dict.npy", allow_pickle=True)[()]
-    test_cids_dataset = GraphDataset(root="./data/", gt=gt, split="test_cids")
+    test_cids_dataset = GraphDataset(
+        root="./data/", gt=gt, split="test_cids", features=features
+    )
     test_text_dataset = TextDataset(
         file_path="./data/test_text.txt", tokenizer=tokenizer
     )
