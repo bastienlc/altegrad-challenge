@@ -4,7 +4,7 @@ from transformers import AutoTokenizer
 
 from load import load_dataset
 from models.gat import GATModel
-from training_utils import train
+from utils import train
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

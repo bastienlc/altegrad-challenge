@@ -10,8 +10,7 @@ from transformers import AutoTokenizer
 
 from load import load_dataset
 from models.baseline import BaselineModel
-from training_utils import process_batch
-from utils import get_metrics
+from utils import get_metrics, process_batch
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
