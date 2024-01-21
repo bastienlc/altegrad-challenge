@@ -6,7 +6,7 @@ from ..baseline import TextEncoder
 from .library import GAT
 
 
-class GATEncoder(nn.Module):
+class DeepGATEncoder(nn.Module):
     def __init__(
         self,
         num_node_features,
@@ -17,9 +17,9 @@ class GATEncoder(nn.Module):
         nheads=20,
         dropout=0.1,
         alpha=0.02,
-        attention_depth=1,
+        attention_depth=2,
     ):
-        super(GATEncoder, self).__init__()
+        super(DeepGATEncoder, self).__init__()
         self.nhid = mlp_hid
         self.nout = nout
         self.gat = GAT(
@@ -49,16 +49,16 @@ class GATEncoder(nn.Module):
         return x
 
 
-class GATModel(nn.Module):
+class DeepGATModel(nn.Module):
     def __init__(
         self,
         model_name,
         num_node_features,
         nout,
-        attention_depth=1,
+        attention_depth=3,
     ):
-        super(GATModel, self).__init__()
-        self.graph_encoder = GATEncoder(
+        super(DeepGATModel, self).__init__()
+        self.graph_encoder = DeepGATEncoder(
             num_node_features, nout, attention_depth=attention_depth
         )
         self.text_encoder = TextEncoder(model_name)
