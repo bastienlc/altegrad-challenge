@@ -55,11 +55,11 @@ class GATModel(nn.Module):
         model_name,
         num_node_features,
         nout,
+        attention_depth=3,
     ):
         super(GATModel, self).__init__()
         self.graph_encoder = GATEncoder(
-            num_node_features,
-            nout,
+            num_node_features, nout, attention_depth=attention_depth
         )
         self.text_encoder = TextEncoder(model_name)
 
