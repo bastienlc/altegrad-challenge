@@ -54,7 +54,10 @@ class GraphTextDataset(Dataset):
 
     @property
     def processed_dir(self) -> str:
-        return osp.join(self.root, "processed/", self.split)
+        special = ""
+        for feature in self.features:
+            special += "_" + feature
+        return osp.join(self.root, "processed" + special + "/", self.split)
 
     def download(self):
         pass
@@ -157,7 +160,10 @@ class GraphDataset(Dataset):
 
     @property
     def processed_dir(self) -> str:
-        return osp.join(self.root, "processed/", self.split)
+        special = ""
+        for feature in self.features:
+            special += "_" + feature
+        return osp.join(self.root, "processed" + special + "/", self.split)
 
     def download(self):
         pass
