@@ -1,6 +1,7 @@
 # This code originates from https://github.com/Diego999/pyGAT/
-# and is licensed under the MIT license.
-# ============================================================
+# and is licensed under the MIT license. I added an attention_depth
+# parameter that allows attending to nodes that are further away.
+# =================================================================
 
 import torch
 import torch.nn as nn
@@ -12,11 +13,12 @@ class GraphAttentionLayer(nn.Module):
     Simple GAT layer, similar to https://arxiv.org/abs/1710.10903
     """
 
-    def __init__(self, in_features, out_features, dropout, alpha):
+    def __init__(self, in_features, out_features, attention_depth, dropout, alpha):
         super(GraphAttentionLayer, self).__init__()
         self.dropout = dropout
         self.in_features = in_features
         self.out_features = out_features
+        self.attention_depth = attention_depth
         self.alpha = alpha
 
         self.W = nn.Parameter(torch.empty(size=(in_features, out_features)))
@@ -34,6 +36,14 @@ class GraphAttentionLayer(nn.Module):
 
         zero_vec = -9e15 * torch.ones_like(e)
         attention = torch.where(adj > 0, e, zero_vec)
+        depth_adj = adj.clone()
+        for depth in range(2, self.attention_depth + 1):
+            depth_adj = torch.matmul(
+                depth_adj, adj
+            )  # number of paths of length depth from i to j
+            attention += torch.where(
+                depth_adj > 0, e * depth_adj / depth**2, zero_vec
+            )
         attention = F.softmax(attention, dim=1)
         attention = F.dropout(attention, self.dropout, training=self.training)
         h_prime = torch.matmul(attention, Wh)
@@ -63,20 +73,22 @@ class GraphAttentionLayer(nn.Module):
 
 
 class GAT(nn.Module):
-    def __init__(self, nfeat, nhid, nout, dropout, alpha, nheads):
+    def __init__(self, nfeat, nhid, nout, dropout, alpha, nheads, attention_depth):
         """Dense version of GAT."""
         super(GAT, self).__init__()
         self.dropout = dropout
 
         self.attentions = [
-            GraphAttentionLayer(nfeat, nhid, dropout=dropout, alpha=alpha)
+            GraphAttentionLayer(
+                nfeat, nhid, attention_depth, dropout=dropout, alpha=alpha
+            )
             for _ in range(nheads)
         ]
         for i, attention in enumerate(self.attentions):
             self.add_module("attention_{}".format(i), attention)
 
         self.out_att = GraphAttentionLayer(
-            nhid * nheads, nout, dropout=dropout, alpha=alpha
+            nhid * nheads, nout, attention_depth, dropout=dropout, alpha=alpha
         )
 
     def forward(self, x, adj):

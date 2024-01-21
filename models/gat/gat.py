@@ -17,6 +17,7 @@ class GATEncoder(nn.Module):
         nheads=20,
         dropout=0.1,
         alpha=0.02,
+        attention_depth=3,
     ):
         super(GATEncoder, self).__init__()
         self.nhid = mlp_hid
@@ -28,6 +29,7 @@ class GATEncoder(nn.Module):
             dropout,
             alpha,
             nheads,
+            attention_depth,
         )
         self.mol_hidden1 = nn.Linear(att_out_dim, mlp_hid)
         self.mol_hidden2 = nn.Linear(mlp_hid, nout)
@@ -36,9 +38,6 @@ class GATEncoder(nn.Module):
         x = graph_batch.x  # nodes features (nb_nodes, embeddings_size)
         edge_index = graph_batch.edge_index  # 'adjacency matrix' (2, nb_edges_in_batch)
         batch = graph_batch.batch  # in what graph is each node (nb_nodes)
-
-        if edge_index.ndim == 1:
-            raise ValueError("edge_index should be of shape (2, nb_edges_in_batch)")
 
         adj = torch.zeros((x.shape[0], x.shape[0]), device=x.device)
         adj[edge_index[0], edge_index[1]] = 1
