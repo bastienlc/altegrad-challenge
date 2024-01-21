@@ -14,6 +14,7 @@ def load_dataset(
     root=".",
     features=[],
     shuffle=True,
+    num_workers=4,
 ):
     gt = np.load(f"{root}/data/token_embedding_dict.npy", allow_pickle=True)[()]
     train_dataset = GraphTextDataset(
@@ -35,10 +36,13 @@ def load_dataset(
 
     else:
         train_loader = DataLoader(
-            train_dataset, batch_size=batch_size, shuffle=shuffle, num_workers=4
+            train_dataset,
+            batch_size=batch_size,
+            shuffle=shuffle,
+            num_workers=num_workers,
         )
         val_loader = DataLoader(
-            val_dataset, batch_size=batch_size, shuffle=shuffle, num_workers=4
+            val_dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers
         )
 
     return train_loader, val_loader
