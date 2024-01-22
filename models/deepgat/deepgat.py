@@ -11,13 +11,13 @@ class DeepGATEncoder(nn.Module):
         self,
         num_node_features,
         nout,
-        mlp_hid=1000,
-        att_hidden_dim=600,
-        att_out_dim=1000,
-        nheads=20,
+        mlp_hid=600,
+        att_hidden_dim=300,
+        att_out_dim=600,
+        nheads=10,
         dropout=0.1,
         alpha=0.02,
-        attention_depth=2,
+        attention_depth=3,
     ):
         super(DeepGATEncoder, self).__init__()
         self.nhid = mlp_hid
