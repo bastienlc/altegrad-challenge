@@ -11,13 +11,13 @@ class GATEncoder(nn.Module):
         self,
         num_node_features,
         nout,
-        mlp_hid=1000,
-        att_hidden_dim=600,
-        att_out_dim=1000,
-        nheads=20,
-        dropout=0.1,
-        alpha=0.02,
-        attention_depth=1,
+        mlp_hid,
+        att_hidden_dim,
+        att_out_dim,
+        nheads,
+        dropout,
+        alpha,
+        attention_depth,
     ):
         super(GATEncoder, self).__init__()
         self.nhid = mlp_hid
@@ -55,11 +55,25 @@ class GATModel(nn.Module):
         model_name,
         num_node_features,
         nout,
+        mlp_hid=1000,
+        att_hidden_dim=600,
+        att_out_dim=1000,
+        nheads=20,
+        dropout=0.1,
+        alpha=0.02,
         attention_depth=1,
     ):
         super(GATModel, self).__init__()
         self.graph_encoder = GATEncoder(
-            num_node_features, nout, attention_depth=attention_depth
+            num_node_features,
+            nout,
+            mlp_hid,
+            att_hidden_dim,
+            att_out_dim,
+            nheads,
+            dropout,
+            alpha,
+            attention_depth,
         )
         self.text_encoder = TextEncoder(model_name)
 
