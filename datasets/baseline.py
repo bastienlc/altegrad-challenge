@@ -8,6 +8,7 @@ from torch.utils.data import Dataset as TorchDataset
 from torch_geometric.data import Data, Dataset
 from tqdm import tqdm
 
+from .graphormer import add_shortest_distances
 from .pathnn import add_pathnn_data
 
 
@@ -108,6 +109,8 @@ class GraphTextDataset(Dataset):
 
             if "pathnn" in self.features:
                 data = add_pathnn_data(data)
+            if "shortest_distances" in self.features:
+                data = add_shortest_distances(data)
 
             torch.save(data, osp.join(self.processed_dir, "data_{}.pt".format(cid)))
             i += 1
@@ -201,6 +204,8 @@ class GraphDataset(Dataset):
 
             if "pathnn" in self.features:
                 data = add_pathnn_data(data)
+            if "shortest_distances" in self.features:
+                data = add_shortest_distances(data)
 
             torch.save(data, osp.join(self.processed_dir, "data_{}.pt".format(cid)))
             i += 1

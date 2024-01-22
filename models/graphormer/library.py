@@ -1,15 +1,14 @@
 # This code originates from https://github.com/leffff/graphormer-pyg/
-# and is licensed under the MIT license. Modified to remove edge features.
-# ========================================================================
+# and is licensed under the MIT license. Modified to remove edge features
+# and fix multiple issues.
+# =======================================================================
 
-from typing import Dict, List, Tuple
+from typing import Tuple
 
-import networkx as nx
 import torch
 from torch import nn
 from torch_geometric.data import Data
 from torch_geometric.utils import degree
-from torch_geometric.utils.convert import to_networkx
 
 
 def decrease_to_max_value(x, max_value):
@@ -17,19 +16,17 @@ def decrease_to_max_value(x, max_value):
     return x
 
 
+# Discard in/out degrees since we have undirected graphs
 class CentralityEncoding(nn.Module):
-    def __init__(self, max_in_degree: int, max_out_degree: int, node_dim: int):
+    def __init__(self, max_degree: int, node_dim: int):
         """
-        :param max_in_degree: max in degree of nodes
-        :param max_out_degree: max in degree of nodes
+        :param max_degree: max degree of nodes
         :param node_dim: hidden dimensions of node features
         """
         super().__init__()
-        self.max_in_degree = max_in_degree
-        self.max_out_degree = max_out_degree
+        self.max_degree = max_degree
         self.node_dim = node_dim
-        self.z_in = nn.Parameter(torch.randn((max_in_degree, node_dim)))
-        self.z_out = nn.Parameter(torch.randn((max_out_degree, node_dim)))
+        self.z = nn.Parameter(torch.randn((max_degree, node_dim)))
 
     def forward(self, x: torch.Tensor, edge_index: torch.LongTensor) -> torch.Tensor:
         """
@@ -39,14 +36,11 @@ class CentralityEncoding(nn.Module):
         """
         num_nodes = x.shape[0]
 
-        in_degree = decrease_to_max_value(
-            degree(index=edge_index[1], num_nodes=num_nodes).long(), self.max_in_degree
-        )
-        out_degree = decrease_to_max_value(
-            degree(index=edge_index[0], num_nodes=num_nodes).long(), self.max_out_degree
+        deg = decrease_to_max_value(
+            degree(index=edge_index[0], num_nodes=num_nodes).long(), self.max_degree - 1
         )
 
-        x += self.z_in[in_degree] + self.z_out[out_degree]
+        x += self.z[deg]
 
         return x
 
@@ -61,20 +55,20 @@ class SpatialEncoding(nn.Module):
 
         self.b = nn.Parameter(torch.randn(self.max_path_distance))
 
-    def forward(self, x: torch.Tensor, paths) -> torch.Tensor:
+    def forward(
+        self, x: torch.Tensor, distances: torch.Tensor, distances_index: torch.Tensor
+    ) -> torch.Tensor:
         """
         :param x: node feature matrix
-        :param paths: pairwise node paths
+        :param distances: (num_nodes * num_nodes) tensor of pairwise distances between nodes
+        :param distances_index: (2, num_nodes * num_nodes) index of pairwise distances between nodes
         :return: torch.Tensor, spatial Encoding matrix
         """
-        spatial_matrix = torch.zeros((x.shape[0], x.shape[0])).to(
-            next(self.parameters()).device
-        )
-        for src in paths:
-            for dst in paths[src]:
-                spatial_matrix[src][dst] = self.b[
-                    min(len(paths[src][dst]), self.max_path_distance) - 1
-                ]
+        spatial_matrix = torch.zeros((x.shape[0], x.shape[0])).to(x.device)
+
+        spatial_matrix[distances_index[0, :], distances_index[1, :]] = self.b[
+            torch.clamp(distances, max=self.max_path_distance - 1).type(torch.int)
+        ]
 
         return spatial_matrix
 
@@ -112,23 +106,13 @@ class GraphormerAttentionHead(nn.Module):
         :param ptr: batch pointer that shows graph indexes in batch of graphs
         :return: torch.Tensor, node embeddings after attention operation
         """
+        batch_mask_zeros = ptr[:, None] == ptr[None, :]
+
         batch_mask_neg_inf = torch.full(
             size=(query.shape[0], query.shape[0]), fill_value=-1e6
         ).to(next(self.parameters()).device)
-        batch_mask_zeros = torch.zeros(size=(query.shape[0], query.shape[0])).to(
-            next(self.parameters()).device
-        )
 
-        # OPTIMIZE: get rid of slices: rewrite to torch
-        if type(ptr) == type(None):
-            batch_mask_neg_inf = torch.ones(size=(query.shape[0], query.shape[0])).to(
-                next(self.parameters()).device
-            )
-            batch_mask_zeros += 1
-        else:
-            for i in range(len(ptr) - 1):
-                batch_mask_neg_inf[ptr[i] : ptr[i + 1], ptr[i] : ptr[i + 1]] = 1
-                batch_mask_zeros[ptr[i] : ptr[i + 1], ptr[i] : ptr[i + 1]] = 1
+        batch_mask_neg_inf[batch_mask_zeros] = 1
 
         query = self.q(query)
         key = self.k(key)
@@ -216,16 +200,6 @@ class GraphormerEncoderLayer(nn.Module):
         return x_new
 
 
-def shortest_path_distance(
-    data: Data,
-) -> Dict[int, List[int]]:
-    G = to_networkx(data)
-    return nx.shortest_path(G)
-
-
-import time
-
-
 class Graphormer(nn.Module):
     def __init__(
         self,
@@ -234,8 +208,7 @@ class Graphormer(nn.Module):
         node_dim: int,
         output_dim: int,
         n_heads: int,
-        max_in_degree: int,
-        max_out_degree: int,
+        max_degree: int,
         max_path_distance: int,
     ):
         """
@@ -244,8 +217,7 @@ class Graphormer(nn.Module):
         :param node_dim: hidden dimensions of node features
         :param output_dim: number of output node features
         :param n_heads: number of attention heads
-        :param max_in_degree: max in degree of nodes
-        :param max_out_degree: max in degree of nodes
+        :param max_degree: max degree of nodes
         :param max_path_distance: max pairwise distance between two nodes
         """
         super().__init__()
@@ -255,15 +227,13 @@ class Graphormer(nn.Module):
         self.node_dim = node_dim
         self.output_dim = output_dim
         self.n_heads = n_heads
-        self.max_in_degree = max_in_degree
-        self.max_out_degree = max_out_degree
+        self.max_degree = max_degree
         self.max_path_distance = max_path_distance
 
         self.node_in_lin = nn.Linear(self.input_node_dim, self.node_dim)
 
         self.centrality_encoding = CentralityEncoding(
-            max_in_degree=self.max_in_degree,
-            max_out_degree=self.max_out_degree,
+            max_degree=self.max_degree,
             node_dim=self.node_dim,
         )
 
@@ -292,38 +262,12 @@ class Graphormer(nn.Module):
         edge_index = data.edge_index.long()
         ptr = data.batch
 
-        time0 = time.time()
-
-        node_paths = shortest_path_distance(data)
-
-        time1 = time.time()
-
         x = self.node_in_lin(x)
 
-        time2 = time.time()
         x = self.centrality_encoding(x, edge_index)
-        time3 = time.time()
-        b = self.spatial_encoding(x, node_paths)
-        time4 = time.time()
+        b = self.spatial_encoding(x, data.distances, data.distances_index)
         for layer in self.layers:
             x = layer(x, b, ptr)
-        time5 = time.time()
         x = self.node_out_lin(x)
-        time6 = time.time()
-
-        print(
-            "shortest path",
-            time1 - time0,
-            "linearin",
-            time2 - time1,
-            "centrality",
-            time3 - time2,
-            "spatial",
-            time4 - time3,
-            "layers",
-            time5 - time4,
-            "linearout",
-            time6 - time5,
-        )
 
         return x

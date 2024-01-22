@@ -1,1 +1,1 @@
-from .graphormer import GraphormerModel
+from .graphormer import GraphormerEncoder, GraphormerModel

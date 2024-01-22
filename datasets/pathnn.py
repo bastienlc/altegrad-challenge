@@ -9,6 +9,7 @@ from torch_geometric.data import Data
 from torch_geometric.utils.convert import to_networkx
 
 
+# This class defines custom mini batching
 class ModifData(Data):
     def __init__(self, edge_index=None, x=None, *args, **kwargs):
         super().__init__(x=x, edge_index=edge_index, **kwargs)

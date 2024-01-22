@@ -7,6 +7,7 @@ import torch
 from torch_geometric.data import Data, Dataset
 from tqdm import tqdm
 
+from .graphormer import add_shortest_distances
 from .pathnn import add_pathnn_data
 
 
@@ -114,6 +115,8 @@ class OneSidedDataset(Dataset):
 
             if "pathnn" in self.features:
                 data = add_pathnn_data(data)
+            if "shortest_distances" in self.features:
+                data = add_shortest_distances(data)
 
             torch.save(data, osp.join(self.processed_dir, "data_{}.pt".format(cid)))
             i += 1

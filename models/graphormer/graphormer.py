@@ -24,9 +24,8 @@ class GraphormerEncoder(nn.Module):
             graph_hidden_channels,
             graph_hidden_channels,
             nheads,
-            5,
-            5,
-            5,
+            10,
+            50,
         )
         self.mol_hidden1 = nn.Linear(graph_hidden_channels, nhid)
         self.mol_hidden2 = nn.Linear(nhid, nout)
@@ -45,10 +44,10 @@ class GraphormerModel(nn.Module):
         model_name,
         num_node_features,
         nout,
-        nhid,
-        graph_hidden_channels,
-        layers=3,
-        nheads=10,
+        nhid=300,
+        graph_hidden_channels=300,
+        layers=5,
+        nheads=5,
     ):
         super(GraphormerModel, self).__init__()
         self.graph_encoder = GraphormerEncoder(
