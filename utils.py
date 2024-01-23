@@ -163,7 +163,7 @@ def train(
         best_validation_loss = min(best_validation_loss, val_loss)
         best_validation_score = max(best_validation_score, val_score)
 
-        if best_validation_loss == val_loss or best_validation_score == val_score:
+        if best_validation_score == val_score:
             print("Saving checkpoint... ", end="")
             save_path = os.path.join("./outputs/", save_name + str(e) + ".pt")
             torch.save(
@@ -176,6 +176,13 @@ def train(
                 },
                 save_path,
             )
+            if e > 2:
+                try:
+                    os.remove(last_save_path)
+                except:
+                    pass
+
+            last_save_path = save_path
             print("done : {}".format(save_path))
 
     writer.close()
