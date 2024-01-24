@@ -98,6 +98,8 @@ def get_embeddings(
     test_text_loader: DataLoader,
     device: torch.device,
 ):
+    graph_encoder.eval()
+    text_encoder.eval()
     graph_embeddings = []
     for batch in test_loader:
         for output in graph_encoder(batch.to(device)):
