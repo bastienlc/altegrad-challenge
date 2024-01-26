@@ -2,7 +2,7 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader
 from torch_geometric.nn import GCNConv, global_mean_pool
-from transformers import AutoModel
+from transformers import AutoModel, BitsAndBytesConfig
 
 
 def mean_pooling(embeddings: torch.Tensor, attention_mask: torch.Tensor):
@@ -50,12 +50,31 @@ class GraphEncoder(nn.Module):
 
 
 class TextEncoder(nn.Module):
-    def __init__(self, model_name):
+    def __init__(self, model_name, quantisize=False):
         super(TextEncoder, self).__init__()
+        self.quantisize = quantisize
         self.use_sentence_transformer = model_name in [
             "sentence-transformers/all-MiniLM-L6-v2"
         ]
-        self.model = AutoModel.from_pretrained(model_name)
+        if (
+            quantisize
+        ):  # Quantisizing speeds up inference and training, but I would not recommend it as it degrades the training quality too much
+            quantization_config = BitsAndBytesConfig(
+                load_in_4bit=True,
+                bnb_4bit_compute_dtype=torch.bfloat16,
+                bnb_4bit_quant_type="nf4",
+                bnb_4bit_use_double_quant=True,
+            )
+            self.model = AutoModel.from_pretrained(
+                model_name,
+                quantization_config=quantization_config,
+                load_in_4bit=True,
+                torch_dtype=torch.bfloat16,
+            )
+        else:
+            self.model = AutoModel.from_pretrained(
+                model_name,
+            )
 
     def forward(self, input_ids, attention_mask):
         encoded_text = self.model(input_ids, attention_mask=attention_mask)
@@ -98,6 +117,8 @@ def get_embeddings(
     test_text_loader: DataLoader,
     device: torch.device,
 ):
+    graph_encoder.eval()
+    text_encoder.eval()
     graph_embeddings = []
     for batch in test_loader:
         for output in graph_encoder(batch.to(device)):

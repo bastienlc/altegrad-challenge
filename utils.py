@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
+from pytorch_metric_learning.losses import RankedListLoss
 from sklearn.metrics import label_ranking_average_precision_score
 from sklearn.metrics.pairwise import cosine_similarity
 from torch import optim
@@ -15,7 +16,8 @@ from torch_geometric.loader import DataLoader as GeometricDataLoader
 # Remove warning when using the tokenizer to preprocess the data
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
-CE = nn.CrossEntropyLoss()
+CEL = nn.CrossEntropyLoss()
+RLL = RankedListLoss(margin=0.1, Tn=1, Tp=1)
 
 
 def solution_from_embeddings(graph_embeddings, text_embeddings, save_to="solution.csv"):
@@ -30,7 +32,12 @@ def solution_from_embeddings(graph_embeddings, text_embeddings, save_to="solutio
 def contrastive_loss(v1, v2):
     logits = torch.matmul(v1, torch.transpose(v2, 0, 1))
     labels = torch.arange(logits.shape[0], device=v1.device)
-    return CE(logits, labels) + CE(torch.transpose(logits, 0, 1), labels)
+    return CEL(logits, labels) + CEL(torch.transpose(logits, 0, 1), labels)
+
+
+def ranked_list_loss(v1, v2):
+    labels = torch.arange(v1.shape[0], device=v1.device)
+    return RLL(torch.cat((v1, v2)), torch.cat((labels, labels)))
 
 
 def get_metrics(
@@ -71,7 +78,9 @@ def get_metrics(
     )
 
 
-def process_batch(batch, model, optimizer, device):
+def process_batch(
+    batch, model, optimizer, device, custom_loss: Union[str, None] = None
+):
     input_ids = batch.input_ids
     batch.pop("input_ids")
     attention_mask = batch.attention_mask
@@ -81,7 +90,12 @@ def process_batch(batch, model, optimizer, device):
     x_graph, x_text = model(
         graph_batch.to(device), input_ids.to(device), attention_mask.to(device)
     )
-    current_loss = contrastive_loss(x_graph, x_text)
+    if custom_loss is None or custom_loss == "contrastive":
+        current_loss = contrastive_loss(x_graph, x_text)
+    elif custom_loss == "ranked_list":
+        current_loss = ranked_list_loss(x_graph, x_text)
+    else:
+        raise ValueError("Unknown loss")
     optimizer.zero_grad()
     current_loss.backward()
     optimizer.step()
@@ -97,6 +111,8 @@ def train(
     device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
     load_from: Union[str, None] = None,
     save_name: str = "model",
+    scheduler: Union[optim.lr_scheduler._LRScheduler, None] = None,
+    custom_loss: Union[str, None] = None,
 ):
     writer = SummaryWriter()
     epoch = 0
@@ -125,7 +141,9 @@ def train(
         print("--------------------EPOCH {}--------------------".format(e))
         model.train()
         for batch_idx, batch in enumerate(train_loader):
-            loss += process_batch(batch, model, optimizer, device)
+            loss += process_batch(
+                batch, model, optimizer, device, custom_loss=custom_loss
+            )
             loss_averager += 1
 
             if batch_idx % print_every == 0 and batch_idx > 0:
@@ -159,6 +177,9 @@ def train(
             "and val_score",
             val_score,
         )
+
+        if scheduler is not None:
+            scheduler.step(val_score)
 
         best_validation_loss = min(best_validation_loss, val_loss)
         best_validation_score = max(best_validation_score, val_score)
