@@ -49,9 +49,9 @@ class DiffPoolEncoder(nn.Module):
         self,
         d_features,
         d_out,
-        d_pooling_layers=[10, 4, 1],
-        d_linear=600,
-        dropout=0.1,
+        d_pooling_layers,
+        d_linear,
+        dropout,
     ):
         super(DiffPoolEncoder, self).__init__()
         self.pooling_sizes = d_pooling_layers
@@ -119,11 +119,17 @@ class DiffPoolModel(nn.Module):
         model_name,
         num_node_features,
         nout,
+        d_pooling_layers=[30, 10, 5, 1],
+        d_linear=600,
+        dropout=0.1,
     ):
         super(DiffPoolModel, self).__init__()
         self.graph_encoder = DiffPoolEncoder(
             num_node_features,
             nout,
+            d_pooling_layers,
+            d_linear,
+            dropout,
         )
         self.text_encoder = TextEncoder(model_name)
 
