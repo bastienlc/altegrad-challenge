@@ -3,7 +3,7 @@ from torch import optim
 from transformers import AutoTokenizer
 
 from load import load_dataset
-from models.deepgat import DeepGATModel
+from models.diffpool import DiffPoolModel
 from utils import train
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -13,7 +13,7 @@ embeddings_dim = 384
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 train_loader, val_loader = load_dataset(tokenizer)
 
-model = DeepGATModel(
+model = DiffPoolModel(
     model_name=model_name,
     num_node_features=300,
     nout=embeddings_dim,

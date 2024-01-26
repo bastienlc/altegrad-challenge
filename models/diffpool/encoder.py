@@ -1,9 +1,9 @@
 import torch
-from models.baseline import TextEncoder
 import torch.nn as nn
 from torch_geometric.nn.models import GAT
-from torch_geometric.nn import global_mean_pool
 
+
+# Modified GAT encoder for our purposes
 class GATEncoder(nn.Module):
     def __init__(
         self,
@@ -78,40 +78,3 @@ class GATEncoder(nn.Module):
             output = nn.Dropout(self.dropout)(output)
 
         return output
-
-def get_segment_indices(T):
-    if type(T) is torch.Tensor:
-        T = T.tolist()
-    output = {}
-    for i,t in enumerate(T):
-        if output.get(t) is None:
-            output[t] = [i]
-        else:
-            if output[t][-1] != i and len(output[t]) > 1:
-                output[t].pop()
-            output[t].append(i)
-    return output
-
-def diffpool(S, A, X, idx = None, n_batches = 32, size = None):
-    S = torch.softmax(S, dim=-1)
-
-    if idx is not None :
-        # If idx is not None, it means that we are passing a batched S, A and X with different number of nodes per element.
-        segment_indices = get_segment_indices(idx)
-        X_out, A_out = [], []
-        for k,v in segment_indices.items():
-            if len(v) == 1:
-                a, b = v[0], v[0]+1
-            else :
-                assert len(v) == 2
-                a, b = v[0], v[1]+1
-            S_, X_, A_ = S[a:b], X[a:b], A[a:b, a:b]
-            X_out.append(torch.mm(S_.transpose(0, 1), X_))
-            A_out.append(torch.mm(torch.mm(S_.transpose(0, 1), A_), S_))
-        X_out = torch.stack(X_out, dim=0) #[Batch x Size x Dim]
-        A_out = torch.stack(A_out, dim=0) #[Batch x Size x Size]
-    else :
-        assert size is not None
-        X_out = torch.mm(S.transpose(0, 1), X)
-        A_out = torch.mm(torch.mm(S.transpose(0, 1), A), S)
-    return X_out, A_out
