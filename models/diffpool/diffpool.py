@@ -108,6 +108,10 @@ class DiffPoolEncoder(nn.Module):
         d_features,
         d_out,
         d_pooling_layers,
+        d_encoder_hidden_dims,
+        d_encoder_linear_layers,
+        d_encoder_num_heads,
+        d_encoder_num_layers,
         d_linear,
         dropout,
     ):
@@ -117,13 +121,21 @@ class DiffPoolEncoder(nn.Module):
         self.pooling_layers = nn.ModuleList()
         self.embedding_layers = nn.ModuleList()
 
-        for size in d_pooling_layers:
+        for pooling_size, hidden_dim, linear_layers, num_heads, num_layers in zip(
+            d_pooling_layers,
+            d_encoder_hidden_dims,
+            d_encoder_linear_layers,
+            d_encoder_num_heads,
+            d_encoder_num_layers,
+        ):
             self.pooling_layers.append(
                 GATEncoder(
                     d_features,
-                    size,
-                    d_hidden_dim=150,
-                    d_linear_layers=[300],
+                    pooling_size,
+                    d_hidden_dim=hidden_dim,
+                    d_linear_layers=linear_layers,
+                    num_heads=num_heads,
+                    num_layers=num_layers,
                     dropout=dropout,
                 )
             )
@@ -131,8 +143,10 @@ class DiffPoolEncoder(nn.Module):
                 GATEncoder(
                     d_features,
                     d_features,
-                    d_hidden_dim=300,
-                    d_linear_layers=[600],
+                    d_hidden_dim=hidden_dim,
+                    d_linear_layers=linear_layers,
+                    num_heads=num_heads,
+                    num_layers=num_layers,
                     dropout=dropout,
                 )
             )
@@ -198,15 +212,23 @@ class DiffPoolModel(nn.Module):
         model_name,
         num_node_features,
         nout,
-        d_pooling_layers=[30, 10, 5, 1],
-        d_linear=600,
-        dropout=0.1,
+        d_pooling_layers=[15, 5, 1],
+        d_encoder_hidden_dims=[600, 600, 600],
+        d_encoder_linear_layers=[[300], [300], [300]],
+        d_encoder_num_heads=[3, 3, 3],
+        d_encoder_num_layers=[3, 3, 2],
+        d_linear=1000,
+        dropout=0.05,
     ):
         super(DiffPoolModel, self).__init__()
         self.graph_encoder = DiffPoolEncoder(
             num_node_features,
             nout,
             d_pooling_layers,
+            d_encoder_hidden_dims,
+            d_encoder_linear_layers,
+            d_encoder_num_heads,
+            d_encoder_num_layers,
             d_linear,
             dropout,
         )

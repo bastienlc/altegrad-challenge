@@ -1,1 +1,1 @@
-from .diffpool import DiffPoolModel
+from .diffpool import DiffPoolEncoder, DiffPoolModel
