@@ -129,6 +129,7 @@ def train(
     model_summary = summary(
         model.graph_encoder,
         next(iter(train_loader)).to(device),
+        max_depth=10,
     )
     print(model_summary)
     with open("./outputs/parameters.txt", "w") as f:
