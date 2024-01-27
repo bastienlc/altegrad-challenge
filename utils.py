@@ -153,7 +153,7 @@ def train(
 
     for e in range(epoch + 1, nb_epochs):
         print(f"------------EPOCH {e:^4}------------")
-        if e > initial_freeze:
+        if e == initial_freeze + 1:
             print("[UNFREEZING] text encoder weights")
             model.text_encoder.requires_grad_(True)
 
