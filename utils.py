@@ -12,6 +12,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 from torch import optim
 from torch.utils.tensorboard import SummaryWriter
 from torch_geometric.loader import DataLoader as GeometricDataLoader
+from torch_geometric.nn import summary
 
 # Remove warning when using the tokenizer to preprocess the data
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -113,6 +114,7 @@ def train(
     save_name: str = "model",
     scheduler: Union[optim.lr_scheduler._LRScheduler, None] = None,
     custom_loss: Union[str, None] = None,
+    initial_freeze: int = 0,
 ):
     writer = SummaryWriter()
     epoch = 0
@@ -120,9 +122,17 @@ def train(
     loss_averager = 0
     losses = []
     time1 = time.time()
-    print_every = 50
+    print_every = 100
     best_validation_loss = 1e100
     best_validation_score = 0
+
+    model_summary = summary(
+        model.graph_encoder,
+        next(iter(train_loader)).to(device),
+    )
+    print(model_summary)
+    with open("./outputs/parameters.txt", "w") as f:
+        f.write(model_summary)
 
     if load_from is not None:
         checkpoint = torch.load(load_from)
@@ -137,8 +147,15 @@ def train(
             )
         )
 
+    # Freeze the text encoder for the first epochs so that we don't degrade the pretrained weights
+    model.text_encoder.requires_grad_(False)
+
     for e in range(epoch + 1, nb_epochs):
-        print("--------------------EPOCH {}--------------------".format(e))
+        print(f"------------EPOCH {e:^4}------------")
+        if e > initial_freeze:
+            print("[UNFREEZING] text encoder weights")
+            model.text_encoder.requires_grad_(True)
+
         model.train()
         for batch_idx, batch in enumerate(train_loader):
             loss += process_batch(
@@ -150,9 +167,7 @@ def train(
                 loss /= loss_averager
                 time2 = time.time()
                 print(
-                    "Iteration: {0}, Time: {1:.4f} s, training loss: {2:.4f}".format(
-                        batch_idx, time2 - time1, loss
-                    )
+                    f"Batch {batch_idx:<3} | {time.strftime('%H:%M:%S', time.gmtime(int(time2 - time1)))} | Loss {loss:<6.4f}"
                 )
                 losses.append(loss)
                 writer.add_scalar("Loss/train", loss, e * len(train_loader) + batch_idx)
@@ -161,31 +176,20 @@ def train(
 
         step = (e + 1) * len(train_loader)
 
-        print(
-            "Computing metrics on validation set... (time={:.4f}s)".format(
-                time.time() - time1
-            )
-        )
         val_loss, val_score = get_metrics(model, val_loader, device=device)
         writer.add_scalar("Loss/val", val_loss, step)
         writer.add_scalar("Score/val", val_score, step)
 
         writer.flush()
 
-        print(
-            "Epoch " + str(e) + " finished with val_loss " + str(val_loss),
-            "and val_score",
-            val_score,
-        )
-
-        if scheduler is not None:
-            scheduler.step(val_score)
+        print("----------------------------------")
+        print(f"[LOSS] {val_loss:<6.4f} |  [SCORE] {val_score:<6.4f}")
+        print(f"[LR] {optimizer.param_groups[0]['lr']:<8.2E}")
 
         best_validation_loss = min(best_validation_loss, val_loss)
         best_validation_score = max(best_validation_score, val_score)
 
         if best_validation_score == val_score:
-            print("Saving checkpoint... ", end="")
             save_path = os.path.join("./outputs/", save_name + str(e) + ".pt")
             torch.save(
                 {
@@ -197,14 +201,17 @@ def train(
                 },
                 save_path,
             )
-            if e > 2:
+            if e > 1:
                 try:
                     os.remove(last_save_path)
                 except:
                     pass
 
             last_save_path = save_path
-            print("done : {}".format(save_path))
+            print(f"[SAVED] at {save_path}")
+
+        if scheduler is not None:
+            scheduler.step(val_score)
 
     writer.close()
     return save_path, best_validation_loss, best_validation_score

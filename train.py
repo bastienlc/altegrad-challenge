@@ -11,7 +11,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model_name = "sentence-transformers/all-MiniLM-L6-v2"
 embeddings_dim = 384
 tokenizer = AutoTokenizer.from_pretrained(model_name)
-train_loader, val_loader = load_dataset(tokenizer)
+train_loader, val_loader = load_dataset(tokenizer, batch_size=32)
 
 model = DiffPoolModel(
     model_name=model_name,
@@ -20,7 +20,13 @@ model = DiffPoolModel(
 ).to(device)
 
 optimizer = optim.AdamW(
-    model.parameters(), lr=1e-5, betas=(0.9, 0.999), weight_decay=0.01
+    model.parameters(), lr=1e-4, betas=(0.9, 0.999), weight_decay=0.005
+)
+
+scheduler = optim.lr_scheduler.MultiplicativeLR(
+    optimizer,
+    lr_lambda=lambda epoch: 0.9333,  # At this rate we go from 1e-4 to 1e-7 in 100 epochs
+    verbose=False,
 )
 
 save_path, _, _ = train(
@@ -28,10 +34,9 @@ save_path, _, _ = train(
     optimizer,
     train_loader,
     val_loader,
-    scheduler=optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, mode="max", patience=2, verbose=True, factor=0.7
-    ),
+    scheduler=scheduler,
     custom_loss="contrastive",
-    nb_epochs=50,
+    nb_epochs=100,
     device=device,
+    initial_freeze=2,
 )
