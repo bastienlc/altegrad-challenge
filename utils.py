@@ -118,7 +118,7 @@ def train(
     print_every: int = 50,
     load_optimizer: bool = True,
 ):
-    writer = SummaryWriter()
+    writer = SummaryWriter(log_dir="runs/" + save_name)
     epoch = 0
     loss = 0
     loss_averager = 0
@@ -139,13 +139,29 @@ def train(
     if load_from is not None:
         checkpoint = torch.load(load_from)
         model.load_state_dict(checkpoint["model_state_dict"])
-        best_validation_loss = checkpoint["val_loss"]
-        best_validation_score = checkpoint["val_score"]
-        epoch = checkpoint["epoch"]
+        try:
+            best_validation_loss = checkpoint["val_loss"]
+        except:
+            print("No validation loss in checkpoint")
+        try:
+            best_validation_score = checkpoint["val_score"]
+        except:
+            print("No validation score in checkpoint")
+        try:
+            epoch = checkpoint["epoch"]
+        except:
+            print("No epoch in checkpoint")
+        try:
+            time1 = time1 - checkpoint["time"]
+        except:
+            print("No time in checkpoint")
         if load_optimizer:
-            optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+            try:
+                optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+            except:
+                print("No optimizer in checkpoint")
         print(
-            "Loaded model from {}, best_validation_score={}, best validation loss={}".format(
+            "Loaded model from {}, best validation score={}, best validation loss={}".format(
                 load_from, best_validation_score, best_validation_loss
             )
         )
@@ -200,6 +216,7 @@ def train(
                     "optimizer_state_dict": optimizer.state_dict(),
                     "val_loss": val_loss,
                     "val_score": val_score,
+                    "time": time.time() - time1,
                 },
                 save_path,
             )
