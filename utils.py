@@ -115,6 +115,7 @@ def train(
     scheduler: Union[optim.lr_scheduler._LRScheduler, None] = None,
     custom_loss: Union[str, None] = None,
     initial_freeze: int = 0,
+    print_every: int = 50,
 ):
     writer = SummaryWriter()
     epoch = 0
@@ -122,7 +123,6 @@ def train(
     loss_averager = 0
     losses = []
     time1 = time.time()
-    print_every = 100
     best_validation_loss = 1e100
     best_validation_score = 0
 
@@ -183,8 +183,7 @@ def train(
 
         writer.flush()
 
-        print("----------------------------------")
-        print(f"[LOSS] {val_loss:<6.4f} |  [SCORE] {val_score:<6.4f}")
+        print(f"[LOSS] {val_loss:<6.4f} | [SCORE] {val_score:<6.4f}")
         print(f"[LR] {optimizer.param_groups[0]['lr']:<8.2E}")
 
         best_validation_loss = min(best_validation_loss, val_loss)
