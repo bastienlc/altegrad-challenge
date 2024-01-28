@@ -116,6 +116,7 @@ def train(
     custom_loss: Union[str, None] = None,
     initial_freeze: int = 0,
     print_every: int = 50,
+    load_optimizer: bool = True,
 ):
     writer = SummaryWriter()
     epoch = 0
@@ -138,10 +139,11 @@ def train(
     if load_from is not None:
         checkpoint = torch.load(load_from)
         model.load_state_dict(checkpoint["model_state_dict"])
-        optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
         best_validation_loss = checkpoint["val_loss"]
         best_validation_score = checkpoint["val_score"]
         epoch = checkpoint["epoch"]
+        if load_optimizer:
+            optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
         print(
             "Loaded model from {}, best_validation_score={}, best validation loss={}".format(
                 load_from, best_validation_score, best_validation_loss
