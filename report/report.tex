@@ -1,0 +1,93 @@
+\documentclass[switch, 12pt]{article}
+
+\usepackage{preprint}
+\usepackage{amsmath, amsthm, amssymb, amsfonts}
+\usepackage[numbers,square]{natbib}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{xcolor}
+\usepackage[colorlinks = true,
+    linkcolor = purple,
+    urlcolor  = blue,
+    citecolor = cyan,
+    anchorcolor = black]{hyperref}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{nicefrac}
+\usepackage{microtype}
+\usepackage{lineno}
+\usepackage{float}
+\usepackage{multicol}
+\usepackage[shortlabels]{enumitem}
+\usepackage{float}
+\usepackage{subfloat}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{amssymb}
+\usepackage{bbold}
+\usepackage{stmaryrd}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{titlesec}
+\usepackage{authblk}
+
+
+\bibliographystyle{unsrtnat}
+\setlist[enumerate,1]{leftmargin=2em}
+\titlespacing\section{0pt}{12pt plus 3pt minus 3pt}{1pt plus 1pt minus 1pt}
+\titlespacing\subsection{0pt}{10pt plus 3pt minus 3pt}{1pt plus 1pt minus 1pt}
+\titlespacing\subsubsection{0pt}{8pt plus 3pt minus 3pt}{1pt plus 1pt minus 1pt}
+\renewcommand*{\Authfont}{\bfseries}
+
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\N}{\mathbb{N}}
+\DeclareMathOperator*{\argmin}{arg\,min}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\minimize}{minimize}
+
+\title{Molecule Retrieval with Natural Language Queries}
+\author[1]{Sofiane Ezzehi}
+\author[1]{Bastien Le Chenadec}
+\affil[1]{École des Ponts ParisTech}
+
+\begin{document}
+
+\maketitle
+
+\begin{contribstatement}
+
+\end{contribstatement}
+\vspace{0.35cm}
+
+\begin{multicols}{2}
+    \section{Introduction}
+
+    The goal of this challenge is to retrieve molecules from a database using natural language queries. Each sample in the dataset is constituted of a ChEBI description of a molecule, which is a text describing its structure and properties, and an undirected graph representing the molecule with embeddings for each node. The embeddings are pre-computed using the Mol2Vec algorithm \cite{mol2vec}. Given a textual query, the goal is to retrieve the molecule that best matches the query. The evaluation metric is the label ranking average precision score (LRAP) which is equivalent to the mean reciprocal rank (MRR) in our case.
+
+    The challenging part of this task is to find a way to combine two very different modalities : texts and graphs. One way to achieve this is to use contrastive learning : one model encodes the text and the other encodes the graph. The two encoders are then trained to project similar samples close to each other in the embedding space. This approach has been shown to be effective in many tasks \cite{chen-2020,gao-2021}.
+
+    \section{Data}
+
+    \section{Method}
+
+    \subsection{Graph Attention Networks}
+
+    \cite{velickovic-2018}
+
+    \subsection{DiffPool}
+
+    \cite{ying-2018}
+
+    \subsection{Language modelling}
+
+    \section{Training}
+
+    \section{Results}
+
+    \newpage
+
+    \bibliography{bibliography}
+
+\end{multicols}
+
+\end{document}
