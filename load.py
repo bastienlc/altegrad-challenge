@@ -4,7 +4,7 @@ from torch.utils.data import Subset
 from torch_geometric.loader import DataLoader
 from transformers import PreTrainedTokenizer
 
-from datasets import GraphDataset, GraphTextDataset, TextDataset
+from transform import GraphDataset, GraphTextDataset, TextDataset
 
 
 def load_dataset(
