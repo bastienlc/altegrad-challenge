@@ -3,85 +3,21 @@ import time
 from typing import Union
 
 import numpy as np
-import pandas as pd
 import torch
 import torch.nn as nn
-from pytorch_metric_learning.losses import RankedListLoss
-from sklearn.metrics import label_ranking_average_precision_score
-from sklearn.metrics.pairwise import cosine_similarity
 from torch import optim
+from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from torch_geometric.loader import DataLoader as GeometricDataLoader
 from torch_geometric.nn import summary
 
+from metrics import Metrics
+
 # Remove warning when using the tokenizer to preprocess the data
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
-CEL = nn.CrossEntropyLoss()
-RLL = RankedListLoss(margin=0.1, Tn=1, Tp=1)
 
-
-def solution_from_embeddings(graph_embeddings, text_embeddings, save_to="solution.csv"):
-    similarity = cosine_similarity(text_embeddings, graph_embeddings)
-
-    solution = pd.DataFrame(similarity)
-    solution["ID"] = solution.index
-    solution = solution[["ID"] + [col for col in solution.columns if col != "ID"]]
-    solution.to_csv(f"outputs/{save_to}", index=False)
-
-
-def contrastive_loss(v1, v2):
-    logits = torch.matmul(v1, torch.transpose(v2, 0, 1))
-    labels = torch.arange(logits.shape[0], device=v1.device)
-    return CEL(logits, labels) + CEL(torch.transpose(logits, 0, 1), labels)
-
-
-def ranked_list_loss(v1, v2):
-    labels = torch.arange(v1.shape[0], device=v1.device)
-    return RLL(torch.cat((v1, v2)), torch.cat((labels, labels)))
-
-
-def get_metrics(
-    model: nn.Module,
-    loader: GeometricDataLoader,
-    device: torch.device = torch.device("cuda" if torch.cuda.is_available() else "cpu"),
-):
-    model.eval()
-    graph_embeddings = []
-    text_embeddings = []
-    loss = 0
-    with torch.no_grad():
-        for batch in loader:
-            input_ids = batch.input_ids
-            batch.pop("input_ids")
-            attention_mask = batch.attention_mask
-            batch.pop("attention_mask")
-            graph_batch = batch
-
-            x_graph, x_text = model(
-                graph_batch.to(device),
-                input_ids.to(device),
-                attention_mask.to(device),
-            )
-
-            loss += contrastive_loss(x_graph, x_text).item()
-
-            for output in x_graph:
-                graph_embeddings.append(output.tolist())
-            for output in x_text:
-                text_embeddings.append(output.tolist())
-
-    similarity = cosine_similarity(text_embeddings, graph_embeddings)
-
-    return (
-        loss / len(loader),
-        label_ranking_average_precision_score(np.eye(len(similarity)), similarity),
-    )
-
-
-def process_batch(
-    batch, model, optimizer, device, custom_loss: Union[str, None] = None
-):
+def process_batch(batch, model, optimizer, device, loss):
     input_ids = batch.input_ids
     batch.pop("input_ids")
     attention_mask = batch.attention_mask
@@ -91,12 +27,8 @@ def process_batch(
     x_graph, x_text = model(
         graph_batch.to(device), input_ids.to(device), attention_mask.to(device)
     )
-    if custom_loss is None or custom_loss == "contrastive":
-        current_loss = contrastive_loss(x_graph, x_text)
-    elif custom_loss == "ranked_list":
-        current_loss = ranked_list_loss(x_graph, x_text)
-    else:
-        raise ValueError("Unknown loss")
+
+    current_loss = loss(x_graph, x_text)
     optimizer.zero_grad()
     current_loss.backward()
     optimizer.step()
@@ -113,7 +45,7 @@ def train(
     load_from: Union[str, None] = None,
     save_name: str = "model",
     scheduler: Union[optim.lr_scheduler._LRScheduler, None] = None,
-    custom_loss: Union[str, None] = None,
+    metrics: Metrics = Metrics(),
     initial_freeze: int = 0,
     print_every: int = 50,
     load_optimizer: bool = True,
@@ -177,9 +109,7 @@ def train(
 
         model.train()
         for batch_idx, batch in enumerate(train_loader):
-            loss += process_batch(
-                batch, model, optimizer, device, custom_loss=custom_loss
-            )
+            loss += process_batch(batch, model, optimizer, device, metrics.loss)
             loss_averager += 1
 
             if batch_idx % print_every == 0 and batch_idx > 0:
@@ -195,7 +125,9 @@ def train(
 
         step = (e + 1) * len(train_loader)
 
-        val_loss, val_score = get_metrics(model, val_loader, device=device)
+        validation_metrics = metrics.get(model, val_loader, device=device)
+        val_loss = validation_metrics["loss"]
+        val_score = validation_metrics["score"]
         writer.add_scalar("Loss/val", val_loss, step)
         writer.add_scalar("Score/val", val_score, step)
 
@@ -234,3 +166,30 @@ def train(
 
     writer.close()
     return save_path, best_validation_loss, best_validation_score
+
+
+def get_embeddings(
+    graph_encoder: nn.Module,
+    text_encoder: nn.Module,
+    test_loader: DataLoader,
+    test_text_loader: DataLoader,
+    device: torch.device,
+):
+    graph_encoder.eval()
+    text_encoder.eval()
+    graph_embeddings = []
+    for batch in test_loader:
+        for output in graph_encoder(batch.to(device)):
+            graph_embeddings.append(output.tolist())
+
+    text_embeddings = []
+    for batch in test_text_loader:
+        for output in text_encoder(
+            batch["input_ids"].to(device),
+            attention_mask=batch["attention_mask"].to(device),
+        ):
+            text_embeddings.append(output.tolist())
+
+    return torch.Tensor(np.array(graph_embeddings)), torch.Tensor(
+        np.array(text_embeddings)
+    )
