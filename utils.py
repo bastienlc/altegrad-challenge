@@ -56,6 +56,7 @@ def train(
     loss_averager = 0
     losses = []
     time1 = time.time()
+    running_time = 0
     best_validation_loss = 1e100
     best_validation_score = 0
 
@@ -84,7 +85,7 @@ def train(
         except:
             print("No epoch in checkpoint")
         try:
-            time1 = time1 - checkpoint["time"]
+            running_time = checkpoint["time"]
         except:
             print("No time in checkpoint")
         if load_optimizer:
@@ -114,9 +115,8 @@ def train(
 
             if batch_idx % print_every == 0 and batch_idx > 0:
                 loss /= loss_averager
-                time2 = time.time()
                 print(
-                    f"Batch {batch_idx:<3} | {time.strftime('%H:%M:%S', time.gmtime(int(time2 - time1)))} | Loss {loss:<6.4f}"
+                    f"Batch {batch_idx:<3} | {time.strftime('%H:%M:%S', time.gmtime(int(running_time + time.time() - time1)))} | Loss {loss:<6.4f}"
                 )
                 losses.append(loss)
                 writer.add_scalar("Loss/train", loss, e * len(train_loader) + batch_idx)
@@ -148,7 +148,7 @@ def train(
                     "optimizer_state_dict": optimizer.state_dict(),
                     "val_loss": val_loss,
                     "val_score": val_score,
-                    "time": time.time() - time1,
+                    "time": running_time + time.time() - time1,
                 },
                 save_path,
             )
