@@ -5,7 +5,7 @@ import pandas as pd
 import torch
 import torch.nn as nn
 from pytorch_metric_learning.distances import CosineSimilarity
-from pytorch_metric_learning.losses import ContrastiveLoss, PNPLoss
+from pytorch_metric_learning.losses import CircleLoss, ContrastiveLoss, PNPLoss
 from sklearn.metrics import label_ranking_average_precision_score
 from sklearn.metrics.pairwise import cosine_similarity
 from torch_geometric.loader import DataLoader as GeometricDataLoader
@@ -13,6 +13,7 @@ from torch_geometric.loader import DataLoader as GeometricDataLoader
 CEL = nn.CrossEntropyLoss()
 CL = ContrastiveLoss(pos_margin=1, neg_margin=0, distance=CosineSimilarity())
 PNP = PNPLoss(distance=CosineSimilarity())
+CL = CircleLoss(margin=0.4, gamma=80, distance=CosineSimilarity())
 
 
 def cross_entropy_loss(v1, v2):
@@ -29,6 +30,11 @@ def contrastive_loss(v1, v2):
 def pnp_loss(v1, v2):
     labels = torch.arange(v1.shape[0], device=v1.device)
     return PNP(torch.cat((v1, v2)), torch.cat((labels, labels)))
+
+
+def circle_loss(v1, v2):
+    labels = torch.arange(v1.shape[0], device=v1.device)
+    return CL(torch.cat((v1, v2)), torch.cat((labels, labels)))
 
 
 class Metrics:
@@ -48,6 +54,9 @@ class Metrics:
             self.similarity = CosineSimilarity()
         elif loss == "pnp":
             self.loss = pnp_loss
+            self.similarity = CosineSimilarity()
+        elif loss == "circle":
+            self.loss = circle_loss
             self.similarity = CosineSimilarity()
         else:
             raise ValueError(f"Loss '{loss}' not implemented")
