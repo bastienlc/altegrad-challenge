@@ -134,6 +134,9 @@ def train(
 
         writer.flush()
 
+        if scheduler is not None:
+            scheduler.step()
+
         print(f"[LOSS] {val_loss:<6.4f} | [SCORE] {val_score:<6.4f}")
         print(f"[LR] {optimizer.param_groups[0]['lr']:<8.2E}")
 
@@ -161,9 +164,6 @@ def train(
 
             last_save_path = save_path
             print(f"[SAVED] at {save_path}")
-
-        if scheduler is not None:
-            scheduler.step(val_score)
 
     writer.close()
     return save_path, best_validation_loss, best_validation_score
