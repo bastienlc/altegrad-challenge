@@ -10,29 +10,35 @@ from sklearn.metrics import label_ranking_average_precision_score
 from sklearn.metrics.pairwise import cosine_similarity
 from torch_geometric.loader import DataLoader as GeometricDataLoader
 
-CEL = nn.CrossEntropyLoss()
-CL = ContrastiveLoss(pos_margin=1, neg_margin=0, distance=CosineSimilarity())
-PNP = PNPLoss(distance=CosineSimilarity())
-CL = CircleLoss(m=0.1, gamma=80, distance=CosineSimilarity())
 
-
-def cross_entropy_loss(v1, v2):
+def cross_entropy_loss(v1, v2, **kwargs):
+    CEL = nn.CrossEntropyLoss(**kwargs)
     logits = torch.matmul(v1, torch.transpose(v2, 0, 1))
     labels = torch.arange(logits.shape[0], device=v1.device)
     return CEL(logits, labels) + CEL(torch.transpose(logits, 0, 1), labels)
 
 
-def contrastive_loss(v1, v2):
+def contrastive_loss(
+    v1, v2, pos_margin=1, neg_margin=0, distance=CosineSimilarity(), **kwargs
+):
+    CL = ContrastiveLoss(
+        pos_margin=pos_margin,
+        neg_margin=neg_margin,
+        distance=distance,
+        **kwargs,
+    )
     labels = torch.arange(v1.shape[0], device=v1.device)
     return CL(torch.cat((v1, v2)), torch.cat((labels, labels)))
 
 
-def pnp_loss(v1, v2):
+def pnp_loss(v1, v2, distance=CosineSimilarity(), **kwargs):
+    PNP = PNPLoss(distance=distance, **kwargs)
     labels = torch.arange(v1.shape[0], device=v1.device)
     return PNP(torch.cat((v1, v2)), torch.cat((labels, labels)))
 
 
-def circle_loss(v1, v2):
+def circle_loss(v1, v2, m=0.1, gamma=1, distance=CosineSimilarity(), **kwargs):
+    CL = CircleLoss(m=m, gamma=gamma, distance=distance, **kwargs)
     labels = torch.arange(v1.shape[0], device=v1.device)
     return CL(torch.cat((v1, v2)), torch.cat((labels, labels)))
 
@@ -45,18 +51,18 @@ class Metrics:
     - The loss, which takes a similarity matrix and true labels and returns a scalar describing how good the model is on this batch.
     """
 
-    def __init__(self, loss: Union[str, None] = None) -> None:
+    def __init__(self, loss: Union[str, None] = None, **kwargs) -> None:
         if loss == None or loss == "cross_entropy":
-            self.loss = cross_entropy_loss
+            self.loss = lambda v1, v2: cross_entropy_loss(v1, v2, **kwargs)
             self.similarity = cosine_similarity
         elif loss == "contrastive":
-            self.loss = contrastive_loss
+            self.loss = lambda v1, v2: contrastive_loss(v1, v2, **kwargs)
             self.similarity = CosineSimilarity()
         elif loss == "pnp":
-            self.loss = pnp_loss
+            self.loss = lambda v1, v2: pnp_loss(v1, v2, **kwargs)
             self.similarity = CosineSimilarity()
         elif loss == "circle":
-            self.loss = circle_loss
+            self.loss = lambda v1, v2: circle_loss(v1, v2, **kwargs)
             self.similarity = CosineSimilarity()
         else:
             raise ValueError(f"Loss '{loss}' not implemented")

@@ -3,6 +3,7 @@ from torch import optim
 from transformers import AutoTokenizer
 
 from load import load_dataset
+from metrics import Metrics
 from models.diffpool import DiffPoolModel
 from utils import train
 
@@ -35,7 +36,7 @@ save_path, _, _ = train(
     train_loader,
     val_loader,
     scheduler=scheduler,
-    custom_loss="contrastive",
+    metrics=Metrics("circle", m=0.1, gamma=1),
     nb_epochs=100,
     device=device,
     initial_freeze=3,
