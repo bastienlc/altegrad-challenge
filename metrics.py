@@ -13,7 +13,7 @@ from torch_geometric.loader import DataLoader as GeometricDataLoader
 CEL = nn.CrossEntropyLoss()
 CL = ContrastiveLoss(pos_margin=1, neg_margin=0, distance=CosineSimilarity())
 PNP = PNPLoss(distance=CosineSimilarity())
-CL = CircleLoss(m=0.4, gamma=80, distance=CosineSimilarity())
+CL = CircleLoss(m=0.1, gamma=80, distance=CosineSimilarity())
 
 
 def cross_entropy_loss(v1, v2):
