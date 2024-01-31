@@ -100,11 +100,12 @@ def train(
         )
 
     # Freeze the text encoder for the first epochs so that we don't degrade the pretrained weights
-    model.text_encoder.requires_grad_(False)
+    if initial_freeze > 0:
+        model.text_encoder.requires_grad_(False)
 
     for e in range(epoch + 1, nb_epochs):
         print(f"------------EPOCH {e:^4}------------")
-        if e == initial_freeze + 1:
+        if initial_freeze > 0 and e == initial_freeze + 1:
             print("[UNFREEZING] text encoder weights")
             model.text_encoder.requires_grad_(True)
 
