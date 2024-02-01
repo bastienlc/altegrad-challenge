@@ -31,6 +31,7 @@
 \usepackage{titlesec}
 \usepackage{authblk}
 
+\DeclareMathOperator{\leakyrelu}{LeakyReLU}
 
 \bibliographystyle{unsrtnat}
 \setlist[enumerate,1]{leftmargin=2em}
@@ -70,9 +71,30 @@
 
     \section{Method}
 
+    In this section, we describe the different models we used to encode the text and the graph. The text encoder and graph encoders are two separate models that are trained jointly using contrastive learning, so that they share the same embedding space.
+
     \subsection{Graph Attention Networks}
 
-    \cite{velickovic-2018}
+    Graph Attention Networks (GAT) \cite{velickovic-2018} have been shown to be effective in many tasks. Like other graph neural networks, GATs aggregate information from the neighbors of each node to compute its embedding. The main difference with other models is that GATs use an attention mechanism to weight the neighbors of each node. Specifically we used the improved version of GATs suggested in \cite{brody-2021}.
+
+    Let $G$ be an undirected graph with $N$ nodes denoted $\llbracket1, N\rrbracket$. Let $d$ be the dimension of the node embeddings, and $h_1,\dots,h_N\in\R^d$ be the said embeddings. Let $W\in\R^{d'\times d}$ and $a\in\R^{2d'}$. The attention weights are :
+    \begin{equation}
+        e(h_i,h_j) = a^T \leakyrelu([Wh_i || Wh_j])
+    \end{equation}
+    where $||$ denotes the concatenation operator. The attention weights are normalized using the softmax operator :
+    \begin{equation}
+        \alpha_{ij} = \frac{\exp(e(h_i,h_j))}{\sum_{k\in\mathcal{N}_i}\exp(e(h_i,h_k))}
+    \end{equation}
+    where $\mathcal{N}_i$ denotes the set of neighbors of node $i$ in $G$. This mechanism clearly allows the batch processing of graphs with different sizes. The embedding of node $i$ is then computed as :
+    \begin{equation}
+        h_i' = \leakyrelu\left(\sum_{j\in\mathcal{N}_i}\alpha_{ij}Wh_j\right)
+    \end{equation}
+    In general we will use multi-head attention, with $K$ heads, $a^{(1)},\dots,a^{(K)}\in\R^{2d'/K}$ and $W^{(1)},\dots,W^{(K)}\in\R^{d'/K\times d}$ :
+    \begin{equation}
+        h_i' = \leakyrelu\left(\frac{1}{K}\sum_{k=1}^K\sum_{j\in\mathcal{N}_i}\alpha_{ij}^{(k)}W^{(k)}h_j\right)
+    \end{equation}
+    Furthermore, we will stack multiple GAT layers to obtain a deeper model. We may also apply a multi-layer perceptron to the embeddings of the last layer to obtain a more expressive representation.
+
 
     \subsection{DiffPool}
 
