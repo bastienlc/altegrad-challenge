@@ -49,6 +49,7 @@ def train(
     initial_freeze: int = 0,
     print_every: int = 50,
     load_optimizer: bool = True,
+    validate_every: int = 1,
 ):
     writer = SummaryWriter(log_dir="runs/" + save_name)
     epoch = 0
@@ -124,46 +125,47 @@ def train(
                 loss = 0
                 loss_averager = 0
 
-        step = (e + 1) * len(train_loader)
+        if e % validate_every == 0:
+            step = (e + 1) * len(train_loader)
 
-        validation_metrics = metrics.get(model, val_loader, device=device)
-        val_loss = validation_metrics["loss"]
-        val_score = validation_metrics["score"]
-        writer.add_scalar("Loss/val", val_loss, step)
-        writer.add_scalar("Score/val", val_score, step)
+            validation_metrics = metrics.get(model, val_loader, device=device)
+            val_loss = validation_metrics["loss"]
+            val_score = validation_metrics["score"]
+            writer.add_scalar("Loss/val", val_loss, step)
+            writer.add_scalar("Score/val", val_score, step)
 
-        writer.flush()
+            writer.flush()
 
-        if scheduler is not None:
-            scheduler.step()
+            if scheduler is not None:
+                scheduler.step()
 
-        print(f"[LOSS] {val_loss:<6.4f} | [SCORE] {val_score:<6.4f}")
-        print(f"[LR] {optimizer.param_groups[0]['lr']:<8.2E}")
+            print(f"[LOSS] {val_loss:<6.4f} | [SCORE] {val_score:<6.4f}")
+            print(f"[LR] {optimizer.param_groups[0]['lr']:<8.2E}")
 
-        best_validation_loss = min(best_validation_loss, val_loss)
-        best_validation_score = max(best_validation_score, val_score)
+            best_validation_loss = min(best_validation_loss, val_loss)
+            best_validation_score = max(best_validation_score, val_score)
 
-        if best_validation_score == val_score:
-            save_path = os.path.join("./outputs/", save_name + str(e) + ".pt")
-            torch.save(
-                {
-                    "epoch": e,
-                    "model_state_dict": model.state_dict(),
-                    "optimizer_state_dict": optimizer.state_dict(),
-                    "val_loss": val_loss,
-                    "val_score": val_score,
-                    "time": running_time + time.time() - time1,
-                },
-                save_path,
-            )
-            if e > 1:
-                try:
-                    os.remove(last_save_path)
-                except:
-                    pass
+            if best_validation_score == val_score:
+                save_path = os.path.join("./outputs/", save_name + str(e) + ".pt")
+                torch.save(
+                    {
+                        "epoch": e,
+                        "model_state_dict": model.state_dict(),
+                        "optimizer_state_dict": optimizer.state_dict(),
+                        "val_loss": val_loss,
+                        "val_score": val_score,
+                        "time": running_time + time.time() - time1,
+                    },
+                    save_path,
+                )
+                if e > 1:
+                    try:
+                        os.remove(last_save_path)
+                    except:
+                        pass
 
-            last_save_path = save_path
-            print(f"[SAVED] at {save_path}")
+                last_save_path = save_path
+                print(f"[SAVED] at {save_path}")
 
     writer.close()
     return save_path, best_validation_loss, best_validation_score
