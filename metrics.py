@@ -9,6 +9,7 @@ from pytorch_metric_learning.losses import CircleLoss, ContrastiveLoss, PNPLoss
 from sklearn.metrics import label_ranking_average_precision_score
 from sklearn.metrics.pairwise import cosine_similarity
 from torch_geometric.loader import DataLoader as GeometricDataLoader
+from tqdm import tqdm
 
 
 def cross_entropy_loss(v1, v2, **kwargs):
@@ -76,6 +77,7 @@ class Metrics:
         ),
         return_loss=True,
         return_score=True,
+        verbose=False,
     ):
         model.eval()
 
@@ -85,7 +87,7 @@ class Metrics:
         result = {}
 
         with torch.no_grad():
-            for batch in loader:
+            for batch in tqdm(loader, disable=not verbose):
                 input_ids = batch.input_ids
                 batch.pop("input_ids")
                 attention_mask = batch.attention_mask

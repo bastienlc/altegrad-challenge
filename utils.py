@@ -177,13 +177,22 @@ def get_embeddings(
     test_loader: DataLoader,
     test_text_loader: DataLoader,
     device: torch.device,
+    low_memory: bool = False,
 ):
+    if low_memory:
+        text_encoder.to("cpu")
+        graph_encoder.to(device)
+
     graph_encoder.eval()
     text_encoder.eval()
     graph_embeddings = []
     for batch in test_loader:
         for output in graph_encoder(batch.to(device)):
             graph_embeddings.append(output.tolist())
+
+    if low_memory:
+        graph_encoder.to("cpu")
+        text_encoder.to(device)
 
     text_embeddings = []
     for batch in test_text_loader:
@@ -192,6 +201,10 @@ def get_embeddings(
             attention_mask=batch["attention_mask"].to(device),
         ):
             text_embeddings.append(output.tolist())
+
+    if low_memory:
+        graph_encoder.to(device)
+        text_encoder.to(device)
 
     return torch.Tensor(np.array(graph_embeddings)), torch.Tensor(
         np.array(text_embeddings)
