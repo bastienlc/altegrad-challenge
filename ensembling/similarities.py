@@ -22,9 +22,9 @@ def compute_similarities(metrics, skip, split):
         torch.save(similarity, f"./outputs/similarities/{split}/similarity{k}.pt")
 
 
-def load_similarities(split, n):
+def load_similarities(split, models_indices):
     similarities = []
-    for k in range(n):
+    for k in models_indices:
         similarity = torch.load(f"./outputs/similarities/{split}/similarity{k}.pt")
         similarities.append(similarity)
     return np.array(similarities)
