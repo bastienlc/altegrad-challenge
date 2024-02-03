@@ -171,7 +171,7 @@ def train(
     return save_path, best_validation_loss, best_validation_score
 
 
-def get_embeddings(
+def get_test_embeddings(
     graph_encoder: nn.Module,
     text_encoder: nn.Module,
     test_loader: DataLoader,
@@ -199,6 +199,50 @@ def get_embeddings(
         for output in text_encoder(
             batch["input_ids"].to(device),
             attention_mask=batch["attention_mask"].to(device),
+        ):
+            text_embeddings.append(output.tolist())
+
+    if low_memory:
+        graph_encoder.to(device)
+        text_encoder.to(device)
+
+    return torch.Tensor(np.array(graph_embeddings)), torch.Tensor(
+        np.array(text_embeddings)
+    )
+
+
+def get_train_embeddings(
+    graph_encoder: nn.Module,
+    text_encoder: nn.Module,
+    loader: GeometricDataLoader,
+    device: torch.device,
+    low_memory: bool = False,
+):
+    # Make sure your data loader is not shuffling the data
+    if low_memory:
+        text_encoder.to("cpu")
+        graph_encoder.to(device)
+
+    graph_encoder.eval()
+    text_encoder.eval()
+    graph_embeddings = []
+    for batch in loader:
+        batch.pop("input_ids")
+        batch.pop("attention_mask")
+        for output in graph_encoder(batch.to(device)):
+            graph_embeddings.append(output.tolist())
+
+    if low_memory:
+        graph_encoder.to("cpu")
+        text_encoder.to(device)
+
+    text_embeddings = []
+    for batch in loader:
+        input_ids = batch.input_ids
+        attention_mask = batch.attention_mask
+        for output in text_encoder(
+            input_ids.to(device),
+            attention_mask=attention_mask.to(device),
         ):
             text_embeddings.append(output.tolist())
 
