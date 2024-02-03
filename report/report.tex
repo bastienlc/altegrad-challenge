@@ -30,6 +30,7 @@
 \usepackage{hyperref}
 \usepackage{titlesec}
 \usepackage{authblk}
+\usepackage{graphics}
 
 \newcommand{\specialcell}[2][c]{%
   \begin{tabular}[#1]{@{}c@{}}#2\end{tabular}}
@@ -141,23 +142,33 @@
 
     \begin{table}[H]
         \centering
-        \begin{tabular}{c|c|c|c|c}
-            \toprule
-            \textbf{N°} & \textbf{Text Encoder} & \textbf{Graph Encoder} & \textbf{Main characteristics} & \textbf{Score} \\
-            \midrule
-            1           & DistilBERT            & GAT                    & Baseline                      & 0.5            \\
-            2           & MiniLM                & GAT                    & \specialcell[r]{3 GAT layers                   \\3 attention layers} & 0.74 \\
-            3           & MiniLM                & DiffPool               & 2 layers
-        \end{tabular}
+        \resizebox{\columnwidth}{!}{
+            \begin{tabular}{c|c|c|c|c}
+                \toprule
+                \textbf{N°} & \textbf{Text Encoder} & \textbf{Graph Encoder} & \textbf{Main characteristics} & \textbf{Score} \\
+                \midrule
+                1           & DistilBERT            & GAT                    & Baseline                      & 0.5            \\
+                2           & MiniLM                & GAT                    & \specialcell[r]{3 GAT layers                   \\3 attention layers} & 0.74 \\
+                3           & MiniLM                & DiffPool               & 2 layers
+            \end{tabular}
+        }
         \caption{Model evolution throughout the challenge.}
     \end{table}
 
-    \subsection{Loss Functions}
-    We tried different loss functions to train the models. The two main loss functions we used are the Cross-Entropy loss and the Circle loss \cite{cirle_loss}. Let's briefly describe them
-    \begin{enumerate}
-        \item \textbf{Cross-Entropy loss} :
-        \item \textbf{Circle loss} :
-    \end{enumerate}
+    \subsection{Loss Function}
+
+    Initially we used a cross-entropy loss to train the models. However, after some experimentation, we found that the circle loss \cite{sun-2020} resulted in faster training and better asymptotic performance.
+
+    We consider a set of $N$ training samples, which results in $K=2N$ embeddings of dimension $d$ once passed through our model. There are $N$ pairs of positive embeddings (text and graph embeddings of the same molecule) and $L=N(N-1)$ pairs of negative embeddings. We chose the normalized cosine similarity as the similarity measure, so that the similarity between two embeddings $x$ and $y$ is defined as :
+    \begin{equation}
+        s(x,y)=\frac{x^Ty}{\|x\|\cdot\|y\|}
+    \end{equation}
+    We can thus denote $s_p^1,\dots,s_p^{2N}$ the similarities between the positive pairs and $s_n^1,\dots,s_n^{N(N-1)}$ the similarities between the negative pairs. The circle loss is defined as :
+    \begin{align*}
+        \mathcal{L}=\log\left[1+\sum_{j=1}^{L}\exp(\gamma\alpha_{n}^{j}(s_{n}^{j}-\Delta_{n}))\times \right. \\ \left.\sum_{i=1}^{K}\exp(-\gamma\alpha_{p}^{i}(s_{p}^{i}-\Delta_{p}))\right]
+    \end{align*}
+    where $\gamma$ is a scaling factor, $\alpha_{n}^{j}$ and $\alpha_{p}^{i}$ are linear weights for the negative and positive pairs, and $\Delta_{n}$ and $\Delta_{p}$ are the margins for the negative and positive pairs.
+
     \subsection{Training Procedure and implementation details}
     We mainly used the PyTorch library to implement the models. Let's detail in the following the main implementation details of the models.
     \paragraph*{DiffPool implementation for batch processing: } We can easily batch process graphs with different sizes using the DiffPool method. [TODO]
