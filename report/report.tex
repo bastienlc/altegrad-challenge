@@ -31,6 +31,9 @@
 \usepackage{titlesec}
 \usepackage{authblk}
 
+\newcommand{\specialcell}[2][c]{%
+  \begin{tabular}[#1]{@{}c@{}}#2\end{tabular}}
+
 \DeclareMathOperator{\leakyrelu}{LeakyReLU}
 
 \bibliographystyle{unsrtnat}
@@ -97,20 +100,74 @@
 
 
     \subsection{DiffPool}
+    A limitation of Graph Neural Networks (GNNs) is the inherently flat structure of the embeddings. This means that the more macroscopic structure of the graph is not very well captured, since these structural aspects are only encoded by the very local message passing layers. GATs, as we have seen, are designed to capture a more nuanced version of these local structures since they use an attention mechanism to weight the neighbors of each node. However, the global structure of the graph is still not very well captured, even when exploring larger radius neighborhoods.
 
-    \cite{ying-2018}
+    DiffPool \cite{ying-2018} is a method that aims to address this issue. It is a differentiable graph pooling layer that can be used to learn a hierarchical representation of the graph. The main idea is to learn a set of cluster assignments as well as new embeddings for the nodes, and then to use these assignments and embeddings to coarsen the graph. The coarsened graph is then passed to another GNN, and the process is repeated until the graph is small enough. The embeddings of the nodes in the last layer are then used as the graph embedding.
 
+    Let's briefly describe the two main steps of the DiffPool algorithm. We will denote 
+    \begin{enumerate}
+        \item \textbf{Cluster assignment and new embeddings (GAT layers)} : In the original paper \cite{ying-2018}, the cluster assignments as well as the new embeddings are learned using GNNs. However, in our case, we will use GATs. This allows for a more expressive representation of the nodes.
+
+        More specifically, the new embeddings at layer $(l)$ are denoted $Z^{(l)}\in\R^{n_l\times d}$, and are simply obtained as the output of a GAT,
+        $$Z^{(l)} = \text{GAT}_{l, \text{ embed}}\left(A^{(l)},X^{(l)}\right).$$
+        \noindent The cluster assignments at layer $(l)$ are denoted $S^{(l)}\in\R^{n_l\times n_{l+1}}$, and are obtained by applying a softmax function to the output of another GAT (with independent parameters),
+        $$S^{(l)} = \text{softmax}\left(\text{GAT}_{l, \text{ pool}}\left(A^{(l)},X^{(l)}\right)\right).$$
+        \noindent As we can see from the last equation, the cluster assignments are a probability distribution over the nodes of the graph. This means that the cluster assignments are soft, and that each node can belong to multiple clusters.
+        \item \textbf{Graph coarsening (Diffpool layer)} : The coarsened graph is obtained by simply applying the cluster assignments to the new computed embeddings. More specifically, the adjacency matrix of the coarsened graph $A^{(l+1)} \in \R^{n_{l+1}\times n_{l+1}}$ is obtained as
+        $$A^{(l+1)} = {S^{(l)}}^TA^{(l)}S^{(l)}.$$
+
+        The new node embeddings $X^{(l+1)}\in\R^{n_{l+1}\times d}$ are obtained as
+        $$X^{(l+1)} = {S^{(l)}}^T Z^{(l)}.$$
+    \end{enumerate}
+    At the end of the process, a multi-layer perceptron is typically applied to the embeddings of the last layer.
+
+    We can therefore see that a series of coarsening steps are applied to the graph, which results in a smaller graph that captures the global structure of the original graph. Figure \ref{fig:diffpool} that we have taken from the original paper \cite{ying-2018} with slight modifications illustrates the process.
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=0.5\textwidth]{figures/diffpool.jpg}
+        \caption{Illustration of the DiffPool method taken from \cite{ying-2018}. The last feedforward neural network is used to obtain the graph embedding.}
+        \label{fig:diffpool}
+    \end{figure}
+    Ying et al. have also shown in [Proposition 1, \cite{ying-2018}] that the permutation invariance of the DiffPool method is guaranteed, which is a crucial property for graph embedding methods.
     \subsection{Language modelling}
 
     We used a pretrained large language model (LLM) to encode the text. Specifically, we settled on \texttt{sentence-transformers/all-MiniLM-L6-v2} which is a distilled version of MiniLM \cite{wang-2020} known for its efficiency and relatively small size. The sentence embeddings are obtained by averaging the embeddings of the tokens in the sentence, which yields a 384-dimensional vector.
 
     \section{Training}
 
-    \subsection{Loss}
+    \subsection{Model Evolution throughout the Challenge}
+    Throughout the challenge, we tried different models and training procedures. We started with a slightly modified version of the baseline method with a "distlibert" language Transformer model trained by distilling BERT base, and ended up, for the final submission, with an ensemble of XX models. We recap in the following table the big landmarks of our model evolution.
 
-    \subsection{Training procedure}
+    \begin{table}[H]
+        \centering
+        \begin{tabular}{c|c|c|c|c}
+            \toprule
+            \textbf{N°} & \textbf{Text Encoder} & \textbf{Graph Encoder} & \textbf{Main characteristics} & \textbf{Score} \\
+            \midrule
+            1 & DistilBERT & GAT & Baseline & 0.5 \\
+            2 & MiniLM & GAT & \specialcell[r]{3 GAT layers\\3 attention layers} & 0.74 \\
+            3 & MiniLM & DiffPool & 2 layers
+        \end{tabular}
+        \caption{Model evolution throughout the challenge.}
+    \end{table}
+
+    \subsection{Loss Functions}
+
+    \subsection{Training Procedure and implementation details}
+
+    \subsection{Trained models' hyperparameters}
 
     \section{Results}
+
+    \subsection{Results per trained model}
+    \subsection{Global results after ensembling}
+    \subsection{Execution time}
+
+    \section{Other non-conclusive approaches}
+    \subsection{PathNN}
+    \subsection{Condorcet Fusion}
+    \subsection{Alternate training procedure}
 
     \newpage
 
