@@ -153,18 +153,39 @@
     \end{table}
 
     \subsection{Loss Functions}
-
+    We tried different loss functions to train the models. The two main loss functions we used are the Cross-Entropy loss and the Circle loss \cite{cirle_loss}. Let's briefly describe them
+    \begin{enumerate}
+        \item \textbf{Cross-Entropy loss} : 
+        \item \textbf{Circle loss} : 
+    \end{enumerate}
     \subsection{Training Procedure and implementation details}
+    We mainly used the PyTorch library to implement the models. Let's detail in the following the main implementation details of the models.
+    \paragraph*{DiffPool implementation for batch processing: } We can easily batch process graphs with different sizes using the DiffPool method. [TODO]
+
+    \paragraph*{Optimizers and Learning Rate Schedulers: } We mainly used the Adam optimizer with a starting learning rate of $10^{-4}$.
+    To automatically decrease the learning rate, we used a scheduler. More specifically, we fixed the learning rate to $10^{-4}$ for the first 10 epochs, and then decreased it by a factor of 0.05 at every epoch until the 100th. We then fixed the learning rate to the value it had at epoch 100 for the rest of the training.
+
+    \paragraph*{Freezing and Unfreezing}
+    We used a two-step training procedure. We first trained the graph encoder for 5 epochs with the text encoder frozen. After that, we trained the whole model for 100 epochs. This allowed the graph encoder to learn a good representation of the graphs before the text encoder starts to learn and gave noticeable improvements in the results and convergence speed.
+
+    However, as will be further discussed in the results section, this freezing and unfreezing procedure has to be handled with care, as it can lead to very bad results if the freezing is too long while an ADAM optimizer is used. This is due to the fact that the moving averages of the gradients are updated with biased estimates of the gradients during the frozen phase.
+
+    \paragraph*{Ensembling}
+    A very important part of our approach was to ensemble the models. This led to a significant improvement in the results as we will see in the results section. We used a simple averaging method to ensemble XX models. A tuning of the weights of the models in the ensemble has been done on the validation set.
+
+    We tried different ensembling methods, such as the Condorcet fusion method and the XX method, but they did not lead to better results than the simple averaging method. We will discuss these methods in Section \ref{sec:non-conclusive}.
 
     \subsection{Trained models' hyperparameters}
+    We present here the hyperparameters of the models we used to train the graph and text encoders and that are all part of the ensemble.
 
+    [insert table with hyperparameters of the models]
     \section{Results}
-
     \subsection{Results per trained model}
     \subsection{Global results after ensembling}
     \subsection{Execution time}
 
     \section{Other non-conclusive approaches}
+    \label{sec:non-conclusive}
     \subsection{PathNN}
     \subsection{Condorcet Fusion}
     \subsection{Alternate training procedure}
