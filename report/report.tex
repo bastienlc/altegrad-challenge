@@ -104,20 +104,20 @@
 
     DiffPool \cite{ying-2018} is a method that aims to address this issue. It is a differentiable graph pooling layer that can be used to learn a hierarchical representation of the graph. The main idea is to learn a set of cluster assignments as well as new embeddings for the nodes, and then to use these assignments and embeddings to coarsen the graph. The coarsened graph is then passed to another GNN, and the process is repeated until the graph is small enough. The embeddings of the nodes in the last layer are then used as the graph embedding.
 
-    Let's briefly describe the two main steps of the DiffPool algorithm. We will denote 
+    Let's briefly describe the two main steps of the DiffPool algorithm. We will denote
     \begin{enumerate}
         \item \textbf{Cluster assignment and new embeddings (GAT layers)} : In the original paper \cite{ying-2018}, the cluster assignments as well as the new embeddings are learned using GNNs. However, in our case, we will use GATs. This allows for a more expressive representation of the nodes.
 
-        More specifically, the new embeddings at layer $(l)$ are denoted $Z^{(l)}\in\R^{n_l\times d}$, and are simply obtained as the output of a GAT,
-        $$Z^{(l)} = \text{GAT}_{l, \text{ embed}}\left(A^{(l)},X^{(l)}\right).$$
-        \noindent The cluster assignments at layer $(l)$ are denoted $S^{(l)}\in\R^{n_l\times n_{l+1}}$, and are obtained by applying a softmax function to the output of another GAT (with independent parameters),
-        $$S^{(l)} = \text{softmax}\left(\text{GAT}_{l, \text{ pool}}\left(A^{(l)},X^{(l)}\right)\right).$$
-        \noindent As we can see from the last equation, the cluster assignments are a probability distribution over the nodes of the graph. This means that the cluster assignments are soft, and that each node can belong to multiple clusters.
+              More specifically, the new embeddings at layer $(l)$ are denoted $Z^{(l)}\in\R^{n_l\times d}$, and are simply obtained as the output of a GAT,
+              $$Z^{(l)} = \text{GAT}_{l, \text{ embed}}\left(A^{(l)},X^{(l)}\right).$$
+              \noindent The cluster assignments at layer $(l)$ are denoted $S^{(l)}\in\R^{n_l\times n_{l+1}}$, and are obtained by applying a softmax function to the output of another GAT (with independent parameters),
+              $$S^{(l)} = \text{softmax}\left(\text{GAT}_{l, \text{ pool}}\left(A^{(l)},X^{(l)}\right)\right).$$
+              \noindent As we can see from the last equation, the cluster assignments are a probability distribution over the nodes of the graph. This means that the cluster assignments are soft, and that each node can belong to multiple clusters.
         \item \textbf{Graph coarsening (Diffpool layer)} : The coarsened graph is obtained by simply applying the cluster assignments to the new computed embeddings. More specifically, the adjacency matrix of the coarsened graph $A^{(l+1)} \in \R^{n_{l+1}\times n_{l+1}}$ is obtained as
-        $$A^{(l+1)} = {S^{(l)}}^TA^{(l)}S^{(l)}.$$
+              $$A^{(l+1)} = {S^{(l)}}^TA^{(l)}S^{(l)}.$$
 
-        The new node embeddings $X^{(l+1)}\in\R^{n_{l+1}\times d}$ are obtained as
-        $$X^{(l+1)} = {S^{(l)}}^T Z^{(l)}.$$
+              The new node embeddings $X^{(l+1)}\in\R^{n_{l+1}\times d}$ are obtained as
+              $$X^{(l+1)} = {S^{(l)}}^T Z^{(l)}.$$
     \end{enumerate}
     At the end of the process, a multi-layer perceptron is typically applied to the embeddings of the last layer.
 
@@ -145,9 +145,9 @@
             \toprule
             \textbf{N°} & \textbf{Text Encoder} & \textbf{Graph Encoder} & \textbf{Main characteristics} & \textbf{Score} \\
             \midrule
-            1 & DistilBERT & GAT & Baseline & 0.5 \\
-            2 & MiniLM & GAT & \specialcell[r]{3 GAT layers\\3 attention layers} & 0.74 \\
-            3 & MiniLM & DiffPool & 2 layers
+            1           & DistilBERT            & GAT                    & Baseline                      & 0.5            \\
+            2           & MiniLM                & GAT                    & \specialcell[r]{3 GAT layers                   \\3 attention layers} & 0.74 \\
+            3           & MiniLM                & DiffPool               & 2 layers
         \end{tabular}
         \caption{Model evolution throughout the challenge.}
     \end{table}
@@ -155,8 +155,8 @@
     \subsection{Loss Functions}
     We tried different loss functions to train the models. The two main loss functions we used are the Cross-Entropy loss and the Circle loss \cite{cirle_loss}. Let's briefly describe them
     \begin{enumerate}
-        \item \textbf{Cross-Entropy loss} : 
-        \item \textbf{Circle loss} : 
+        \item \textbf{Cross-Entropy loss} :
+        \item \textbf{Circle loss} :
     \end{enumerate}
     \subsection{Training Procedure and implementation details}
     We mainly used the PyTorch library to implement the models. Let's detail in the following the main implementation details of the models.
@@ -178,7 +178,7 @@
     \subsection{Trained models' hyperparameters}
     We present here the hyperparameters of the models we used to train the graph and text encoders and that are all part of the ensemble.
 
-    [insert table with hyperparameters of the models]
+        [insert table with hyperparameters of the models]
     \section{Results}
     \subsection{Results per trained model}
     \subsection{Global results after ensembling}
