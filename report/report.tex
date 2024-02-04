@@ -60,7 +60,7 @@
 \maketitle
 
 \begin{contribstatement}
-
+    Bastien Le Chenadec designed and implemented a neat and efficient framework for the training pipeline, data processing, and GAT model. Sofiane Ezzehi implemented the DiffPool model. Both contributors ran numerous experiments that led to steady improvements of the models. The report was jointly written by both contributors.
 \end{contribstatement}
 \vspace{0.35cm}
 
@@ -152,9 +152,23 @@
 
     \subsection{Ensembling}
 
-    A very important part of our approach was to ensemble the models. This led to a significant improvement in the results as we will see in the results section. We used a simple averaging method to ensemble XX models. A tuning of the weights of the models in the ensemble has been done on the validation set.
+    To improve the performance of our models, we used an ensemble of models. The idea is to train multiple models with different architectures and hyperparameters, and then fuse their predictions. The task of fusing rankings from multiple sources has been extensively studied in the context of recommendation systems \cite{bachanowski-2023}.
 
-    We tried different ensembling methods, such as the Condorcet fusion method and the XX method, but they did not lead to better results than the simple averaging method. We will discuss these methods in Section \ref{sec:non-conclusive}.
+    Let's denote $s_1^{(i)}, \dots, s_N^{(i)}\in\R^N$ the similarities between the queries and the samples for the $i$-th model, and suppose we have $K$ models in our ensemble. The first thing we did was to normalize these similarities so that we can compare them. Quite surprisingly, we obtained the best results when using the following normalization accross queries :
+    \begin{equation}
+        \forall i\in \llbracket1, K\rrbracket, \forall j,k, \quad s_{j,k}^{(i)'} = \frac{s_{j,k}^{(i)} - \min_{l=1}^N s_{l,k}^{(i)}}{\max_{l=1}^N s_{l,k}^{(i)} - \min_{l=1}^N s_{l,k}^{(i)}}
+    \end{equation}
+    We also experimented with other normalization methods, such as min-max norm, rank norm, sum norm, max norm and ZMUV norm.
+
+    After normalization, we used a simple weighted average to fuse the similarities :
+    \begin{equation}
+        s_{j,k} = \frac{1}{K}\sum_{i=1}^K w_i s_{j,k}^{(i)}
+    \end{equation}
+    Once again we experimented with different state of the art unsupervised fusion methods, such as Condorcet fusion \cite{montague-2002} and reciprocal rank fusion \cite{cormack-2009} which did not yield better results than the simple weighted average.
+
+    The weights $w_1,\dots,w_K$ can be effectively chosen using the known performance of the models on the validation set. However we devised a more sophisticated method to choose the weights. We started with a simple grid search to find a good starting point for the weights, and then used an optimization algorithm to find the weights that maximized the LRAP on the validation set. We did not explore the possibility of differentiating the LRAP with respect to the weights, and instead settled on the Powell method \cite{powell-1964} which is a derivative-free optimization algorithm.
+
+    Since we optimized the weights on the validation set, we thought this simple weighted average would avoid overfitting the weights to the validation set. In practice, we found that we did overfit a bit and so we submitted different solutions with different weights to the leaderboard to find some weights that generalize well.
 
 
     \section{Training}
@@ -214,7 +228,36 @@
     \subsection{Trained models' hyperparameters}
     We present here the hyperparameters of the models we used to train the graph and text encoders and that are all part of the ensemble.
 
-        [insert table with hyperparameters of the models]
+\end{multicols}
+
+\begin{table}[H]
+    \begin{center}
+        \resizebox{\columnwidth}{!}{
+            \begin{tabular}{|c|c|c|c|c|c|c|c|c|c|}
+                \toprule
+                \textbf{Model name} & \textbf{DiffPool layers} & \textbf{MPL dimension}\footnotemark & \textbf{MPL} & \textbf{Linear layers}\footnotemark      & \textbf{Attention heads}\footnotemark & \textbf{Final linear layer} & \textbf{Graph parameters} & \textbf{Validation score} \\
+                \midrule
+                DiffPool-base       & $15, 5, 1 $              & $3 \times 600$                      & $3, 3, 2$    & $3 \times [300]$                         & $3\times 3$                           & $1000$                      & $11\:454\: 805$           & $0.8515$                  \\
+                DiffPool-big        & $30, 10, 3, 1 $          & $300, 600, 1200, 1200$              & 10, 5, 3, 1  & $[300], [600], [1200, 600], [1200, 600]$ & $3, 6, 12, 12$                        & $1200$                      & $35\:616\:428$            & $0.8430$                  \\
+                Diffpool-linear     & $15, 5, 1 $              & $3 \times 600$                      & $4, 3, 2$    & $3\times [300, 300]$                     & $3\times 3$                           & $1200$                      & $13\:580\:805$            & $0.8804$                  \\
+                Diffpool-shallow    & $20, 3$                  & $2 \times 1200$                     & $4, 3$       & $2\times [150, 150, 150, 150]$           & $2\times 5$                           & $2000$                      & $34\:228\:057$            & $0.8462$                  \\
+                Diffpool-deep       & $15, 10, 5, 1 $          & $600, 600, 600, 600$                & $4, 3, 2, 2$ & $4\times[150, 150, 150]$                 & $4\times 3$                           & $700$                       & $14\:778\:965$            & $0.8367$                  \\
+                Diffpool-large      & $15, 5, 1 $              & $3 \times 1200$                     & $5, 3, 2$    & $3\times [1200, 600]$                    & $3\times 6$                           & $1200$                      & $59\:116\:305$            & $0.8932$                  \\
+                Diffpool-medium     & $15, 5, 1 $              & $3 \times 600$                      & $6, 4, 3$    & $3\times [600, 300]$                     & $3\times 6$                           & $1200$                      & $20\:991\:405$            & $0.8716$                  \\
+                Diffpool-old        & $10, 4$                  & $2 \times 600$                      & $2\times3$   & $2\times [1000, 500]$                    & $2\times 3$                           & $600$                       & $39\:671\:098$            & $0.8396$                  \\
+                GAT                 & -                        & $1200$                              & $3$          & $[1200, 600]$                            & $6$                                   & -                           & $8\:891\:784$             & $0.6843$                  \\
+                \midrule
+            \end{tabular}
+        }
+    \end{center}
+    \caption{Models hyperparameters.}
+\end{table}
+\footnotetext[1]{MPL: Message Passing Layer, the dimensions of the messages in the GNNs}
+\footnotetext[2]{The dimensions of the linear layers after the GNNs}
+\footnotetext[3]{Number of attention heads in each GAT layer}
+
+\begin{multicols}{2}
+
     \section{Results}
     \subsection{Results per trained model}
     \subsection{Global results after ensembling}
@@ -223,8 +266,25 @@
     \section{Other non-conclusive approaches}
     \label{sec:non-conclusive}
     \subsection{PathNN}
-    \subsection{Condorcet Fusion}
+    \subsection{Language model fine-tuning}
+    As mentioned before, we used a pretrained language model to encode the text. A natural track to follow is to fine-tune it on our specialized dataset. The idea is that since the starting pretrained language model was trained on a large corpus of text, the semantic information concerning the field of molecular chemistry was most likely completely undifferentiated, therefore lending very similar embeddings to very different molecules. Fine-tuning it on our dataset would allow the language model to learn a more specialized representation of the text, and therefore would yield better results.
+
+    We tried to fine-tune the \texttt{bert-base-uncased} model that was pretrained on English Language text using a masked language modeling (MLM) objective. We simply did so by using an MLM objective, masking each time $15\%$ of the tokens of the text. We used an ADAMW optimizer with a learning rate of $5\times 10^{-5}$.
+
+    Despite a model that seemed to be converging during the fine-tuning phase, we did not obtain any significant improvement in the results. We think that, in this particular case, the embeddings of the text using the pretrained language model were already sufficient to differentiate, throughout the training of the main model, the different molecules. We however still believe that fine-tuning the language model could lead to promising results if done differently.
     \subsection{Alternate training procedures}
+    Among the numerous training procedures we tried, we can mention a few alternate training procedures that did not yield very promising results despite their conceptual appeal. We will briefly describe $2$ of these procedures in the following.
+    \begin{enumerate}
+        \item \textbf{Alternate freezing and unfreezing: } We tried to alternate the freezing and unfreezing of the text encoder and the graph encoder throughout the epochs, starting with a frozen text encoder and a trainable graph encoder, and then repeatedly switching the freezing of the two encoders. The hope was that this would allow the two parts to complement each other's training and result in a more balanced model.
+
+              However, this procedure did not yield good results: the model steadily converged to a $0.5$ score on the validation set, but then started to decrease in performance and ended up oscillating around a $0.5$ score.
+
+              We think that this is due to the fact that, while the text encoder is frozen (and vis-versa), the graph encoder is forced to take sub-optimal embedding optimization steps in directions that are not optimal for the final model. From step to step, the encoders try to independently move towards each other, but in a "selfish" fashion that do not lead to a good compromise between the two modalities.
+        \item \textbf{Initial freezing of the text encoder: } This procedure is actually very efficient, and is the one we used in the final model. However, we want to emphasize here that an initial freezing of the text encoder has to be handled with care and balance. In one of our tests, we tried to freeze the text encoder until the score on the validation set reached a $0.5$ score threshold (which took about $30$ epochs), and then unfreeze the text encoder. We also made sure to use an SGD optimizer to avoid the problem of the moving averages of the gradients being updated with biased estimates of the gradients during the frozen phase.
+
+              We found that this procedure led to very poor results with the model oscillating around a $0.5$ score on the validation set. The text encoder was not able to recover from the frozen phase. Our interpretation is actually the same as in the previous procedure. The text encoder was frozen for too long, and the graph encoder shifted its representation too far from the optimal compromise between the two modalities.
+
+    \end{enumerate}
 
     \newpage
 
