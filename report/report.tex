@@ -2,6 +2,7 @@
 
 \usepackage{preprint}
 \usepackage{amsmath, amsthm, amssymb, amsfonts}
+\usepackage{resizegather}
 \usepackage[numbers,square]{natbib}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
@@ -31,7 +32,9 @@
 \usepackage{titlesec}
 \usepackage{authblk}
 \usepackage{graphics}
+\usepackage[font=small,labelfont=bf]{caption}
 
+\setlength{\belowcaptionskip}{-10pt}
 \newcommand{\specialcell}[2][c]{%
   \begin{tabular}[#1]{@{}c@{}}#2\end{tabular}}
 
@@ -39,8 +42,8 @@
 
 \bibliographystyle{unsrtnat}
 \setlist[enumerate,1]{leftmargin=2em}
-\titlespacing\section{0pt}{3pt plus 3pt minus 3pt}{1pt plus 1pt minus 1pt}
-\titlespacing\subsection{0pt}{2pt plus 3pt minus 3pt}{1pt plus 1pt minus 1pt}
+\titlespacing\section{0pt}{0.1ex plus 0.2ex minus 0.1ex}{0.1ex plus 0.2ex minus 0.1ex}
+\titlespacing\subsection{0pt}{0.1ex plus 0.2ex minus 0.1ex}{0.1ex plus 0.2ex minus 0.1ex}
 
 \renewcommand*{\Authfont}{\bfseries}
 
@@ -62,20 +65,19 @@
 \begin{contribstatement}
     Bastien Le Chenadec designed and implemented a neat and efficient framework for the training pipeline, data processing, and GAT model. Sofiane Ezzehi implemented the DiffPool model. Both contributors ran numerous experiments that led to steady improvements of the models. The report was jointly written by both contributors.
 \end{contribstatement}
-\vspace{0.35cm}
 
 \begin{multicols}{2}
     \section{Introduction}
 
-    The goal of this challenge is to retrieve molecules from a database using natural language queries. The challenging part of this task is to find a way to combine two very different modalities : texts and graphs.
+    The goal of this challenge is to retrieve molecules from a database using natural language queries. Given a textual query, we want to retrieve the molecule that best matches the query. The evaluation metric is the label ranking average precision score (LRAP) which is equivalent to the mean reciprocal rank (MRR) in our case.
 
-    One way to achieve this is to use contrastive learning : one model encodes the text and the other encodes the graph. The two encoders are then trained to project similar samples close to each other in the embedding space. This approach has been shown to be effective in many tasks \cite{chen-2020,gao-2021}. Given a textual query, the goal is to retrieve the molecule that best matches the query. The evaluation metric is the label ranking average precision score (LRAP) which is equivalent to the mean reciprocal rank (MRR) in our case.
+    The challenging part of this task is to find a way to combine two very different modalities : texts and graphs. One popular approach is the use of contrastive learning : one model encodes the text and the other encodes the graph. The two encoders are then trained to project similar samples close to each other in the embedding space. This approach has been shown to be effective in many tasks \cite{chen-2020,gao-2021}.
 
-    This report shall describe the different models we used, the training procedure, and the results we obtained.
+    In this report, we describe the different models we used, the training procedure as well as the results we obtained.
 
     \section{Data}
 
-    Each sample in the dataset is constituted of a ChEBI description of a molecule, which is a text describing its structure and properties, and an undirected graph representing the molecule with embeddings for each node. The embeddings are pre-computed using the Mol2Vec algorithm \cite{mol2vec}. The dataset is split into a training set, a validation set, and a test set. The training set contains 26,408 samples, the validation set contains 3,301 samples, and the test set contains 3,301 samples. From our observations the distribution of the data between the training, validation, and test sets is similar.
+    Each sample in the dataset is constituted of a molecule description in natural language, which describes its structure and properties, and of an undirected graph representing the molecule, with embeddings on each node. The embeddings are pre-computed using the Mol2Vec algorithm \cite{mol2vec}. The dataset is split into a training set, a validation set, and a test set. The training set contains 26,408 samples, the validation set contains 3,301 samples, and the test set contains 3,301 samples. From our observations the distribution of the data between the training, validation, and test sets is similar.
 
     \begin{figure}[H]
         \centering
@@ -84,13 +86,13 @@
         \label{fig:dataset}
     \end{figure}
 
-    The molecule descriptions are quite long, with some descriptions as long as 1500 characters. Realistically, we know that some of the longer descriptions are cut off, as the language models we used have a maximum input length of 512 tokens. Furthermore, looking at the tokenization of the descriptions, it's clear that they are not optimal for the language models, as a lot of words are cut in multiple tokens.
+    The molecule descriptions are quite long, with some descriptions as long as 1500 characters. Realistically, we know that some of the longer descriptions are cut off, as the language models we used have a maximum input length of 512 tokens.
 
-    The graphs are quite large, with the number of nodes ranging from 1 to 536 and a mean of 32. The number of edges is similarly distributed. The graph diameter is also quite large, with a maximum of 218 ! This is important when designing message passing models, as the number of message passing layers has to be chosen in accordance with the diameter of the graph.
+    The graphs are also quite large, with the number of nodes ranging from 1 to 536 and a mean of 32. The number of edges is similarly distributed. The graphs diameters are also quite large, with a maximum of 218 ! This is important when designing message passing models, as the number of message passing layers has to be chosen in accordance with the diameter of the graph.
 
     \section{Method}
 
-    In this section, we describe the different models we used to encode the text and the graph. The text encoder and graph encoders are two separate models that are trained jointly using contrastive learning, so that they share the same embedding space.
+    In this section, we describe the different models we used to encode the texts and the graphs. The text encoders and graph encoders are two separate models that are trained jointly using contrastive learning, so that they share the same embedding space.
 
     \subsection{Graph Attention Networks}
 
@@ -116,11 +118,11 @@
 
 
     \subsection{DiffPool}
-    A limitation of Graph Neural Networks (GNNs) is the inherently flat structure of the embeddings. This means that the more macroscopic structure of the graph is not very well captured, since these structural aspects are only encoded by the very local message passing layers. GATs, as we have seen, are designed to capture a more nuanced version of these local structures since they use an attention mechanism to weight the neighbors of each node. However, the global structure of the graph is still not very well captured, even when exploring larger radius neighborhoods.
+    A limitation of Graph Neural Networks (GNNs) is the inherently flat structure of the embeddings. This means that the more macroscopic structure of the graph is not very well captured, since these structural aspects are only encoded by the very local message passing layers. GATs, as we have seen, are designed to capture a more nuanced version of these local structures since they use an attention mechanism to weight the neighbors of each node. However they also share the same limitation as other GNNs.
 
-    DiffPool \cite{ying-2018} is a method that aims to address this issue. It is a differentiable graph pooling layer that can be used to learn a hierarchical representation of the graph. The main idea is to learn a set of cluster assignments as well as new embeddings for the nodes, and then to use these assignments and embeddings to coarsen the graph. The coarsened graph is then passed to another GNN, and the process is repeated until the graph is small enough. The embeddings of the nodes in the last layer are then used as the graph embedding.
+    DiffPool \cite{ying-2018} is a method that aims to address this issue. It is a differentiable graph pooling layer that can be used to learn a hierarchical representation of the graph. The main idea is to learn a set of cluster assignments as well as new embeddings for the nodes, and then to use these assignments and embeddings to coarsen the graph. The coarsened graph is then passed to another DiffPool layer, and the process is repeated until the graph is small enough. The embeddings of the nodes in the last layer are then used as the graph embedding.
 
-    Let's briefly describe the two main steps of the DiffPool algorithm. We will denote
+    Let's briefly describe the two main steps of the DiffPool algorithm.
     \begin{enumerate}
         \item \textbf{Cluster assignment and new embeddings (GAT layers)} : In the original paper \cite{ying-2018}, the cluster assignments as well as the new embeddings are learned using GNNs. However, in our case, we will use GATs. This allows for a more expressive representation of the nodes.
 
@@ -137,18 +139,17 @@
     \end{enumerate}
     At the end of the process, a multi-layer perceptron is typically applied to the embeddings of the last layer.
 
-    We can therefore see that a series of coarsening steps are applied to the graph, which results in a smaller graph that captures the global structure of the original graph. Figure \ref{fig:diffpool} that we have taken from the original paper \cite{ying-2018} with slight modifications illustrates the process.
-
+    By applying this series of coarsening steps to the graph, we capture the global structure of the original graph. This process is illustrated in figure \ref{fig:diffpool}.
     \begin{figure}[H]
         \centering
-        \includegraphics[width=0.5\textwidth]{figures/diffpool.jpg}
+        \includegraphics[width=\columnwidth]{figures/diffpool.jpg}
         \caption{Illustration of the DiffPool method taken from \cite{ying-2018}. The last feedforward neural network is used to obtain the graph embedding.}
         \label{fig:diffpool}
     \end{figure}
     Ying et al. have also shown in [Proposition 1, \cite{ying-2018}] that the permutation invariance of the DiffPool method is guaranteed, which is a crucial property for graph embedding methods.
     \subsection{Language modelling}
 
-    We used a pretrained large language model (LLM) to encode the text. Specifically, we settled on \texttt{sentence-transformers/all-MiniLM-L6-v2} which is a distilled version of MiniLM \cite{wang-2020} known for its efficiency and relatively small size. The sentence embeddings are obtained by averaging the embeddings of the tokens in the sentence, which yields a 384-dimensional vector.
+    We used a pretrained large language model (LLM) to encode the text. Specifically, we settled on \texttt{sentence-transformers/all-MiniLM-L6-v2} which is a distilled version of MiniLM \cite{wang-2020} known for its efficiency and relatively small size. The sentence embeddings are obtained by averaging the embeddings of the tokens in the sentence, which yields a 384-dimensional vector. This model is then fine-tuned in parallel with the graph encoder using a contrastive loss.
 
     \subsection{Ensembling}
 
@@ -158,29 +159,26 @@
     \begin{equation}
         \forall i\in \llbracket1, K\rrbracket, \forall j,k, \quad s_{j,k}^{(i)'} = \frac{s_{j,k}^{(i)} - \min_{l=1}^N s_{l,k}^{(i)}}{\max_{l=1}^N s_{l,k}^{(i)} - \min_{l=1}^N s_{l,k}^{(i)}}
     \end{equation}
-    We also experimented with other normalization methods, such as min-max norm, rank norm, sum norm, max norm and ZMUV norm.
-
-    After normalization, we used a simple weighted average to fuse the similarities :
+    We also experimented with other normalization methods, such as min-max norm, rank norm, sum norm, max norm and ZMUV norm. After normalization, we used a simple weighted average to fuse the similarities :
     \begin{equation}
         s_{j,k} = \frac{1}{K}\sum_{i=1}^K w_i s_{j,k}^{(i)}
     \end{equation}
-    Once again we experimented with different state of the art unsupervised fusion methods, such as Condorcet fusion \cite{montague-2002} and reciprocal rank fusion \cite{cormack-2009} which did not yield better results than the simple weighted average.
+    Once again we experimented with different unsupervised fusion methods, such as Condorcet fusion \cite{montague-2002} and reciprocal rank fusion \cite{cormack-2009} which did not yield better results than the simple weighted average.
 
-    The weights $w_1,\dots,w_K$ can be effectively chosen using the known performance of the models on the validation set. However we devised a more sophisticated method to choose the weights. We started with a simple grid search to find a good starting point for the weights, and then used an optimization algorithm to find the weights that maximized the LRAP on the validation set. We did not explore the possibility of differentiating the LRAP with respect to the weights, and instead settled on the Powell method \cite{powell-1964} which is a derivative-free optimization algorithm.
+    The weights $w_1,\dots,w_K$ can be effectively chosen using the known performance of the models on the validation set. However we devised a more sophisticated method to choose the weights. We started with a simple integer grid search to find a good starting point for the weights, and then used an optimization algorithm to find the weights that maximized the LRAP on the validation set. We did not explore the possibility of differentiating the LRAP with respect to the weights, and instead settled on the Powell method \cite{powell-1964} which is a derivative-free optimization algorithm.
 
-    Since we optimized the weights on the validation set, we thought this simple weighted average would avoid overfitting the weights to the validation set. In practice, we found that we did overfit a bit and so we submitted different solutions with different weights to the leaderboard to find some weights that generalize well.
+    In practice we did not use the best weights found on the validation set, as we found that we were overfitting the validation set. Instead we submitted different solutions with different weights to the leaderboard to find some weights that generalized well.
 
     \subsection{Implementation details}
 
-    All the implementations were done using the pytorch and pytorch-geometric libraries. Let's detail in the following the main implementation details of the models.
-    \paragraph*{DiffPool implementation for batch processing: } In the diffpool model, the size of the variables $S$ and $Z$ are not fixed, and depend on the number of nodes of the graph. For the first diffpool layer, we cannot know in advance the number of nodes which does not allow us to use batch processing. However for the next layers, the graphs are coarsened to a fixed size, which allows us to use batch processing. Distinguishing the first layer from the others allowed significant speedups in the training process.
+    All the implementations were done using the pytorch and pytorch-geometric libraries. The GAT model was implemented using the pytorch-geometric library, and the DiffPool model was implemented from scratch.
 
-
+    \paragraph*{DiffPool implementation for batch processing:} In the DiffPool model, the size of the vectors $S$ and $Z$ are not fixed, and depend on the number of nodes of the graph. For the first diffpool layer, we cannot know in advance the number of nodes which does not allow us to use batch processing. However for the next layers, the graphs are coarsened to a fixed size, which allows us to use batch processing. Distinguishing the first layer from the others allowed significant speedups in the training process.
 
     \section{Training}
 
     \subsection{A little history of our progression}
-    Throughout the challenge, we tried different models and training procedures. In the following table, we summarize the main characteristics of the models we used and the scores we obtained.
+    Throughout the challenge, we tried different models and training procedures. In the following table, we summarize which models allowed us to progress on the leaderboard.
 
     \begin{table}[H]
         \begin{center}
@@ -202,21 +200,22 @@
         \end{center}
         \caption{Model evolution throughout the challenge.}
     \end{table}
+    \vspace{-7mm}
 
-    We focused mainly on the graph encoder, as we thought that the text encoder was already quite sufficiente. The main improvement to the text encoder was to switch from BERT to MiniLM-L6, which is a smaller and faster model, with similar performance. This allowed us to train our models for longer and to use larger batch sizes.
+    We focused mainly on the graph encoder, as we thought that the text encoder was already quite sufficient.
 
     \subsection{Loss Function}
 
     Initially we used a cross-entropy loss to train the models. However, after some experimentation, we found that the circle loss \cite{sun-2020} resulted in faster training and better asymptotic performance.
 
-    Consider a set of $N$ training samples, which results in $K=2N$ embeddings of dimension $d$ once passed through our model. There are $N$ pairs of positive embeddings (text and graph embeddings of the same molecule) and $L=N(N-1)$ pairs of negative embeddings. We chose the normalized cosine similarity as the similarity measure, so that the similarity between two embeddings $x$ and $y$ is defined as :
+    Consider a set of $N$ training samples, which results in $K=2N$ embeddings of dimension $d$ once passed through our model. There are $N$ pairs of positive embeddings (text and graph embeddings of the same molecule) and $L=N(N-1)$ pairs of negative embeddings. We chose the normalized cosine similarity, which is defined as :
     \begin{equation}
         s(x,y)=\frac{x^Ty}{\|x\|\cdot\|y\|}
     \end{equation}
-    We can thus denote $s_p^1,\dots,s_p^{2N}$ the similarities between the positive pairs and $s_n^1,\dots,s_n^{N(N-1)}$ the similarities between the negative pairs. The circle loss is defined as :
-    \begin{align*}
-        \mathcal{L}=\log\left[1+\sum_{j=1}^{L}\exp(\gamma\alpha_{n}^{j}(s_{n}^{j}-\Delta_{n}))\times \right. \\ \left.\sum_{i=1}^{K}\exp(-\gamma\alpha_{p}^{i}(s_{p}^{i}-\Delta_{p}))\right]
-    \end{align*}
+    We can thus denote $s_p^1,\dots,s_p^{2N}$ the similarities between the positive pairs and $s_n^1,\dots,s_n^{N(N-1)}$ the similarities between the negative ones. The circle loss is defined as :
+    \begin{gather*}
+        \mathcal{L}=\log\left[1+\sum_{j=1}^{L}\exp(\gamma\alpha_{n}^{j}(s_{n}^{j}-\Delta_{n}))\times\sum_{i=1}^{K}\exp(-\gamma\alpha_{p}^{i}(s_{p}^{i}-\Delta_{p}))\right]
+    \end{gather*}
     where $\gamma$ is a scaling factor, $\alpha_{n}^{j}$ and $\alpha_{p}^{i}$ are linear weights for the negative and positive pairs, and $\Delta_{n}$ and $\Delta_{p}$ are the margins for the negative and positive pairs.
 
     \subsection{Training Procedure}
@@ -231,6 +230,10 @@
 
     However, as will be further discussed in the results section, this freezing and unfreezing procedure has to be handled with care, as it can lead to very bad results if the freezing is too long while an ADAM optimizer is used. This is due to the fact that the moving averages of the gradients are updated with biased estimates of the gradients during the frozen phase.
 
+    \section{Results}
+
+    We present in figures \ref{fig:loss} and \ref{fig:score} the training and validation loss for three of the models we trained. The steps refer to the number of gradient updates, which is equivalent to the number of epochs times the number of batches in an epoch. The models were trained with a batch size of 64, and the training and validation sets were shuffled at the beginning of each epoch. We clearly see on the loss plot the time at which the text encoder was unfrozen.
+
 \end{multicols}
 
 \begin{table}
@@ -238,34 +241,27 @@
         \resizebox{\columnwidth}{!}{
             \begin{tabular}{|c|c|c|c|c|c|c|c|c|c|}
                 \toprule
-                \textbf{Model name} & \textbf{DiffPool layers} & \textbf{MPL dimension}\footnotemark & \textbf{MPL} & \textbf{Linear layers}\footnotemark      & \textbf{Attention heads}\footnotemark & \textbf{Final linear layer} & \textbf{Graph parameters} & \textbf{Validation score} \\
+                \textbf{Model name}\footnotemark & \textbf{DiffPool layers}\footnotemark & \textbf{MPL dimension}\footnotemark & \textbf{MPL}\footnotemark & \textbf{Linear layers}                  \footnotemark & \textbf{Attention heads}\footnotemark & \textbf{Final linear layer}\footnotemark & \textbf{Graph parameters}\footnotemark & \textbf{Validation score}\footnotemark \\
                 \midrule
-                GAT                 & -                        & $1200$                              & $3$          & $[1200, 600]$                            & $6$                                   & -                           & $8\:891\:784$             & $0.6843$                  \\
-                Diffpool-deep       & $15, 10, 5, 1 $          & $600, 600, 600, 600$                & $4, 3, 2, 2$ & $4\times[150, 150, 150]$                 & $4\times 3$                           & $700$                       & $14\:778\:965$            & $0.8367$                  \\
-                Diffpool-old        & $10, 4$                  & $2 \times 600$                      & $2\times3$   & $2\times [1000, 500]$                    & $2\times 3$                           & $600$                       & $39\:671\:098$            & $0.8396$                  \\
-                DiffPool-big        & $30, 10, 3, 1 $          & $300, 600, 1200, 1200$              & 10, 5, 3, 1  & $[300], [600], [1200, 600], [1200, 600]$ & $3, 6, 12, 12$                        & $1200$                      & $35\:616\:428$            & $0.8430$                  \\
-                Diffpool-shallow    & $20, 3$                  & $2 \times 1200$                     & $4, 3$       & $2\times [150, 150, 150, 150]$           & $2\times 5$                           & $2000$                      & $34\:228\:057$            & $0.8462$                  \\
-                DiffPool-base       & $15, 5, 1 $              & $3 \times 600$                      & $3, 3, 2$    & $3 \times [300]$                         & $3\times 3$                           & $1000$                      & $11\:454\: 805$           & $0.8515$                  \\
-                Diffpool-medium     & $15, 5, 1 $              & $3 \times 600$                      & $6, 4, 3$    & $3\times [600, 300]$                     & $3\times 6$                           & $1200$                      & $20\:991\:405$            & $0.8716$                  \\
-                Diffpool-linear     & $15, 5, 1 $              & $3 \times 600$                      & $4, 3, 2$    & $3\times [300, 300]$                     & $3\times 3$                           & $1200$                      & $13\:580\:805$            & $0.8804$                  \\
-                Diffpool-large      & $15, 5, 1 $              & $3 \times 1200$                     & $5, 3, 2$    & $3\times [1200, 600]$                    & $3\times 6$                           & $1200$                      & $59\:116\:305$            & $0.8932$                  \\
+                GAT                              & -                                     & $1200$                              & $3$                       & $[1200, 600]$                                         & $6$                                   & -                                        & $8\:891\:784$                          & $0.6843$                               \\
+                Diffpool-deep                    & $15, 10, 5, 1 $                       & $600, 600, 600, 600$                & $4, 3, 2, 2$              & $4\times[150, 150, 150]$                              & $4\times 3$                           & $700$                                    & $14\:778\:965$                         & $0.8367$                               \\
+                Diffpool-old                     & $10, 4$                               & $2 \times 600$                      & $2\times3$                & $2\times [1000, 500]$                                 & $2\times 3$                           & $600$                                    & $39\:671\:098$                         & $0.8396$                               \\
+                DiffPool-big                     & $30, 10, 3, 1 $                       & $300, 600, 1200, 1200$              & 10, 5, 3, 1               & $[300], [600], [1200, 600], [1200, 600]$              & $3, 6, 12, 12$                        & $1200$                                   & $35\:616\:428$                         & $0.8430$                               \\
+                Diffpool-shallow                 & $20, 3$                               & $2 \times 1200$                     & $4, 3$                    & $2\times [150, 150, 150, 150]$                        & $2\times 5$                           & $2000$                                   & $34\:228\:057$                         & $0.8462$                               \\
+                DiffPool-base                    & $15, 5, 1 $                           & $3 \times 600$                      & $3, 3, 2$                 & $3 \times [300]$                                      & $3\times 3$                           & $1000$                                   & $11\:454\: 805$                        & $0.8515$                               \\
+                Diffpool-medium                  & $15, 5, 1 $                           & $3 \times 600$                      & $6, 4, 3$                 & $3\times [600, 300]$                                  & $3\times 6$                           & $1200$                                   & $20\:991\:405$                         & $0.8716$                               \\
+                Diffpool-linear                  & $15, 5, 1 $                           & $3 \times 600$                      & $4, 3, 2$                 & $3\times [300, 300]$                                  & $3\times 3$                           & $1200$                                   & $13\:580\:805$                         & $0.8804$                               \\
+                Diffpool-large                   & $15, 5, 1 $                           & $3 \times 1200$                     & $5, 3, 2$                 & $3\times [1200, 600]$                                 & $3\times 6$                           & $1200$                                   & $59\:116\:305$                         & $0.8932$                               \\
                 \midrule
             \end{tabular}
         }
     \end{center}
-    \caption{Models hyperparameters.}
+    \caption{Models hyperparameters. Column descriptions: 1. Arbitrary name we gave to the model. 2. Number of successive DiffPool layers. 3. Dimensions of the message passing layers (MPL) for each GAT layers. 4. Number of message passing layers per GAT layer. 5. Dimension of the multi-layer linear perceptrons at the end of each GAT layer. 6. Number of attention heads in each GAT layer. 7. Dimension of the final linear layer (applied at the end of the global model) 8. Number of parameters of the graph encoder. 9. Score on the validation set.}
+
     \label{tab:models}
 \end{table}
 
-\footnotetext[1]{MPL: Message Passing Layer, the dimensions of the messages in the GNNs}
-\footnotetext[2]{The dimensions of the linear layers after the GNNs}
-\footnotetext[3]{[TODO OTHER FOOTNOTES] Number of attention heads in each GAT layer}
-
 \begin{multicols}{2}
-
-    \section{Results}
-
-    We present in figures \ref{fig:loss} and \ref{fig:score} the training and validation loss for three of the models we trained. The steps referer to the number of gradient updates, which is equivalent to the number of epochs times the number of batches in an epoch. The models were trained with a batch size of 64, and the training and validation sets were shuffled at the beginning of each epoch. We clear see on the loss plot the time when the text encoder was unfrozen.
 
     \begin{figure}[H]
         \centering
@@ -282,7 +278,7 @@
 
     \subsection{Results per trained model and discussion}
 
-    We present on table \ref{tab:models} a detailed summary of the models we trained and the scores we obtained on the validation set. It has to be noted that all the models were trained with the same text encoder, which is a pretrained MiniLM-L6 model. As we can also see, all the models used a GAT-layered DiffPool model as the graph encoder, except for the first model which used a simple GAT model. This last model is also the one that yielded the worst results.
+    We present on table \ref{tab:models} a detailed summary of the models we trained and the scores we obtained on the validation set. It has to be noted that all the models were trained with the same text encoder, which is a pretrained MiniLM-L6 model. As we can also see, all the models used a GAT-layered DiffPool model as the graph encoder, except for the first model which is a simple GAT model. This first model is also the one that yielded the worst results.
 
     A striking observation is that we obtained the best results with the DiffPool-large model, which is the model that has, by far, the most parameters. While this result is not surprising knowing the scalability of such models, it is still interesting to note that, in all the other models, the number of parameters seems to be unrelated to the performance of the model. More specifically, the DiffPool-linear model, which is one of the smallest models, yielded the second best results.
 
@@ -292,7 +288,7 @@
 
 
     \subsection{Global results after ensembling}
-    After ensembling the models and tuning the ensemble weights, we obtained a score of $0.9423$ on the validation set. This is a significant improvement over the best single model which had a score of $0.8932$. Since we were beggining to overfit the validation set, we submitted different solutions with different weights to the leaderboard to find some weights that generalized well. Finally obtained a score of $0.9442$ on the leaderboard. The differences between the scores on the validation set and the leaderboard can also be explained by the fact that at this point, the errors are caused by very out of distribution samples, which may not be equally distributed between the validation set and the test set.
+    After ensembling the models and tuning the ensemble weights, we obtained a score of $0.9423$ on the validation set. This is a significant improvement over the best single model which had a score of $0.8932$. Since we were beggining to overfit the validation set, we submitted different solutions with different weights to the leaderboard to find some weights that generalized well. Finally we obtained a score of $0.9442$ on the leaderboard. The differences between the scores on the validation set and the leaderboard can also be explained by the fact that with such high scores, the errors are caused by very out of distribution samples, which may not be equally distributed between the validation set and the test set.
 
     \subsection{Execution time}
 
@@ -306,21 +302,21 @@
         \item \textbf{Graphormers: } Graphormers are a class of graph neural networks that are based on transformers. The main idea is to incorporate, beyond the information contained in the node features,  the structural insights of the graph into the attention mechanism of the transformer. Two encoding strategies from the ones proposed in the original paper \cite{graphormers} were jointly tested, namely the "Centrality Encoding" and the "Spatial Encoding".
         \item \textbf{PathNN: } PathNN \cite{pathnn} is a new class of graph neural networks that are based on the idea of aggregating information from paths starting from a node. The main idea is to go beyond the simple aggregation of the neighbors of a node, and to instead capture more complex structural information.
     \end{enumerate}
-    Despite the interesting conceptual design of these models, the GAT-layered DiffPool model was the one that yielded the best results on the tests we conducted and on this particular dataset. We think that the main reason for this is that the GAT-layered DiffPool model is able to capture both the local and global structure of the graph, and that this is particularly important in the context of this challenge.
+    Despite the interesting conceptual design of these models, the GAT-layered DiffPool model was the one that yielded the best results on the tests we conducted and on this particular dataset. We think that the main reason for this is that the GAT-layered DiffPool model is able to capture both the local and global structure of the graph, and that this is particularly important because of the already high quality of the pre-computed embeddings.
     \subsection{Language model fine-tuning}
     As mentioned before, we used a pretrained language model to encode the text. A natural track to follow is to fine-tune it on our specialized dataset. The idea is that since the starting pretrained language model was trained on a large corpus of text, the semantic information concerning the field of molecular chemistry was most likely completely undifferentiated, therefore lending very similar embeddings to very different molecules. Fine-tuning it on our dataset would allow the language model to learn a more specialized representation of the text, and therefore would yield better results.
 
     We tried to fine-tune the \texttt{bert-base-uncased} model that was pretrained on English Language text using a masked language modeling (MLM) objective. We simply did so by using an MLM objective, masking each time $15\%$ of the tokens of the text. We used an ADAMW optimizer with a learning rate of $5\times 10^{-5}$.
 
-    Despite a model that seemed to be converging during the fine-tuning phase, we did not obtain any significant improvement in the results. We think that, in this particular case, the embeddings of the text using the pretrained language model were already sufficient to differentiate, throughout the training of the main model, the different molecules. We however still believe that fine-tuning the language model could lead to promising results if done differently.
+    Despite a model that seemed to be converging during the fine-tuning phase, we did not obtain any significant improvement in the results. We think that, in this particular case, the embeddings of the text using the pretrained language model were already sufficient to differentiate, throughout the training of the main model, the different molecules. We however still believe that fine-tuning the language model could lead to promising results on similar tasks.
     \subsection{Alternate training procedures}
-    Among the numerous training procedures we tried, we can mention a few alternate training procedures that did not yield very promising results despite their conceptual appeal. We will briefly describe $2$ of these procedures in the following.
+    Among the numerous training procedures we tried, we can mention a few alternate training procedures that did not yield good results despite their conceptual appeal. We will briefly describe $2$ of these procedures in the following.
     \begin{enumerate}
         \item \textbf{Alternate freezing and unfreezing: } We tried to alternate the freezing and unfreezing of the text encoder and the graph encoder throughout the epochs, starting with a frozen text encoder and a trainable graph encoder, and then repeatedly switching the freezing of the two encoders. The hope was that this would allow the two parts to complement each other's training and result in a more balanced model.
 
               However, this procedure did not yield good results: the model steadily converged to a $0.5$ score on the validation set, but then started to decrease in performance and ended up oscillating around a $0.5$ score.
 
-              We think that this is due to the fact that, while the text encoder is frozen (and vis-versa), the graph encoder is forced to take sub-optimal embedding optimization steps in directions that are not optimal for the final model. From step to step, the encoders try to independently move towards each other, but in a "selfish" fashion that do not lead to a good compromise between the two modalities.
+              We think that this is due to the fact that, while the text encoder is frozen (and vis-versa), the graph encoder is forced to take sub-optimal embedding optimization steps in directions that are not optimal for the final model. From step to step, the encoders try to independently move towards each other, but in a "selfish" fashion that do not lead to a good compromise between the two modalities, thus revealing the importance of contrastive learning.
         \item \textbf{Initial freezing of the text encoder: } This procedure is actually very efficient, and is the one we used in the final model. However, we want to emphasize here that an initial freezing of the text encoder has to be handled with care and balance. In one of our tests, we tried to freeze the text encoder until the score on the validation set reached a $0.5$ score threshold (which took about $30$ epochs), and then unfreeze the text encoder. We also made sure to use an SGD optimizer to avoid the problem of the moving averages of the gradients being updated with biased estimates of the gradients during the frozen phase.
 
               We found that this procedure led to very poor results with the model oscillating around a $0.5$ score on the validation set. The text encoder was not able to recover from the frozen phase. Our interpretation is actually the same as in the previous procedure. The text encoder was frozen for too long, and the graph encoder shifted its representation too far from the optimal compromise between the two modalities.
@@ -328,10 +324,12 @@
     \end{enumerate}
 
     \section{Conclusion}
+    Let's summarize the main takeaways from this challenge.
 
-     [TODO] The main takeaway from this challenge is the importance of ensembling in classification problems. We also note that computational resources are a major bottleneck, as were are limited to small language models and small graph encoders. We saw that best results were obtained with the biggest model.
+    First, we note the effectiveness of the GAT-layered DiffPool model, which is able to capture both the local and global structure of the graph.
+    Second, we note the importance of ensembling in classification problems, as we obtained very significant improvements by setting up a voting system between different models. Third, we note that computational resources constitute a major bottleneck, as we were limited to small language models and graph encoders. Since the best results were obtained with the biggest model, we think that the performance of the models could be significantly improved with more computational resources. Finally, we note the importance of the architecture of the models. Since the performance of the models seems \textit{a priori} somewhat arbitrary, we think that a thorough hyperparameter tuning process is crucial to the design of the models.
+
     \newpage
-
     \bibliography{bibliography}
 
 \end{multicols}
