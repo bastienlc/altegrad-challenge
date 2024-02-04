@@ -67,11 +67,26 @@
 \begin{multicols}{2}
     \section{Introduction}
 
-    The goal of this challenge is to retrieve molecules from a database using natural language queries. Each sample in the dataset is constituted of a ChEBI description of a molecule, which is a text describing its structure and properties, and an undirected graph representing the molecule with embeddings for each node. The embeddings are pre-computed using the Mol2Vec algorithm \cite{mol2vec}. Given a textual query, the goal is to retrieve the molecule that best matches the query. The evaluation metric is the label ranking average precision score (LRAP) which is equivalent to the mean reciprocal rank (MRR) in our case.
+    The goal of this challenge is to retrieve molecules from a database using natural language queries. The challenging part of this task is to find a way to combine two very different modalities : texts and graphs.
 
-    The challenging part of this task is to find a way to combine two very different modalities : texts and graphs. One way to achieve this is to use contrastive learning : one model encodes the text and the other encodes the graph. The two encoders are then trained to project similar samples close to each other in the embedding space. This approach has been shown to be effective in many tasks \cite{chen-2020,gao-2021}.
+    One way to achieve this is to use contrastive learning : one model encodes the text and the other encodes the graph. The two encoders are then trained to project similar samples close to each other in the embedding space. This approach has been shown to be effective in many tasks \cite{chen-2020,gao-2021}. Given a textual query, the goal is to retrieve the molecule that best matches the query. The evaluation metric is the label ranking average precision score (LRAP) which is equivalent to the mean reciprocal rank (MRR) in our case.
+
+    This report shall describe the different models we used, the training procedure, and the results we obtained.
 
     \section{Data}
+
+    Each sample in the dataset is constituted of a ChEBI description of a molecule, which is a text describing its structure and properties, and an undirected graph representing the molecule with embeddings for each node. The embeddings are pre-computed using the Mol2Vec algorithm \cite{mol2vec}. The dataset is split into a training set, a validation set, and a test set. The training set contains 26,408 samples, the validation set contains 3,301 samples, and the test set contains 3,301 samples. From our observations the distribution of the data between the training, validation, and test sets is similar.
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=\columnwidth]{figures/graphs.png}
+        \caption{Two samples from the dataset.}
+        \label{fig:dataset}
+    \end{figure}
+
+    The molecule descriptions are quite long, with some descriptions as long as 1500 characters. Realistically, we know that some of the longer descriptions are cut off, as the language models we used have a maximum input length of 512 tokens. Furthermore, looking at the tokenization of the descriptions, it's clear that they are not optimal for the language models, as a lot of words are cut in multiple tokens.
+
+    The graphs are quite large, with the number of nodes ranging from 1 to 536 and a mean of 32. The number of edges is similarly distributed. The graph diameter is also quite large, with a maximum of 218 ! This is important when designing message passing models, as the number of message passing layers has to be chosen in accordance with the diameter of the graph.
 
     \section{Method}
 
@@ -135,31 +150,46 @@
 
     We used a pretrained large language model (LLM) to encode the text. Specifically, we settled on \texttt{sentence-transformers/all-MiniLM-L6-v2} which is a distilled version of MiniLM \cite{wang-2020} known for its efficiency and relatively small size. The sentence embeddings are obtained by averaging the embeddings of the tokens in the sentence, which yields a 384-dimensional vector.
 
+    \subsection{Ensembling}
+
+    A very important part of our approach was to ensemble the models. This led to a significant improvement in the results as we will see in the results section. We used a simple averaging method to ensemble XX models. A tuning of the weights of the models in the ensemble has been done on the validation set.
+
+    We tried different ensembling methods, such as the Condorcet fusion method and the XX method, but they did not lead to better results than the simple averaging method. We will discuss these methods in Section \ref{sec:non-conclusive}.
+
+
     \section{Training}
 
-    \subsection{Model Evolution throughout the Challenge}
-    Throughout the challenge, we tried different models and training procedures. We started with a slightly modified version of the baseline method with a "distlibert" language Transformer model trained by distilling BERT base, and ended up, for the final submission, with an ensemble of XX models. We recap in the following table the big landmarks of our model evolution.
+    \subsection{A little history of our progression}
+    Throughout the challenge, we tried different models and training procedures. In the following table, we summarize the main characteristics of the models we used and the scores we obtained.
 
     \begin{table}[H]
-        \centering
-        \resizebox{\columnwidth}{!}{
-            \begin{tabular}{c|c|c|c|c}
-                \toprule
-                \textbf{N°} & \textbf{Text Encoder} & \textbf{Graph Encoder} & \textbf{Main characteristics} & \textbf{Score} \\
-                \midrule
-                1           & DistilBERT            & GAT                    & Baseline                      & 0.5            \\
-                2           & MiniLM                & GAT                    & \specialcell[r]{3 GAT layers                   \\3 attention layers} & 0.74 \\
-                3           & MiniLM                & DiffPool               & 2 layers
-            \end{tabular}
-        }
+        \begin{center}
+            \resizebox{\columnwidth}{!}{
+                \begin{tabular}{|c|c|c|c|c|}
+                    \toprule
+                    \textbf{Text Encoder} & \textbf{Graph Encoder} & \textbf{Main characteristics} & \textbf{Score} \\
+                    \midrule
+                    BERT                  & GAT                    &                               & 0.5            \\
+                    MiniLM-L6             & GAT                    &                               & 0.6            \\
+                    MiniLM-L6             & GAT                    & Fine-tuned architecture       & 0.7            \\
+                    MiniLM-L6             & DiffPool               &                               & 0.8            \\
+                    MiniLM-L6             & DiffPool               & Fine-tuned architecture       & 0.86           \\
+                    MiniLM-L6             & Ensemble               & Uniform weights               & 0.92           \\
+                    MiniLM-L6             & Ensemble               & Fine-tuned weights            & 0.94           \\
+                    \midrule
+                \end{tabular}
+            }
+        \end{center}
         \caption{Model evolution throughout the challenge.}
     \end{table}
+
+    We focused mainly on the graph encoder, as we thought that the text encoder was already quite sufficiente. The main improvement to the text encoder was to switch from BERT to MiniLM-L6, which is a smaller and faster model, with similar performance. This allowed us to train our models for longer and to use larger batch sizes.
 
     \subsection{Loss Function}
 
     Initially we used a cross-entropy loss to train the models. However, after some experimentation, we found that the circle loss \cite{sun-2020} resulted in faster training and better asymptotic performance.
 
-    We consider a set of $N$ training samples, which results in $K=2N$ embeddings of dimension $d$ once passed through our model. There are $N$ pairs of positive embeddings (text and graph embeddings of the same molecule) and $L=N(N-1)$ pairs of negative embeddings. We chose the normalized cosine similarity as the similarity measure, so that the similarity between two embeddings $x$ and $y$ is defined as :
+    Consider a set of $N$ training samples, which results in $K=2N$ embeddings of dimension $d$ once passed through our model. There are $N$ pairs of positive embeddings (text and graph embeddings of the same molecule) and $L=N(N-1)$ pairs of negative embeddings. We chose the normalized cosine similarity as the similarity measure, so that the similarity between two embeddings $x$ and $y$ is defined as :
     \begin{equation}
         s(x,y)=\frac{x^Ty}{\|x\|\cdot\|y\|}
     \end{equation}
@@ -181,11 +211,6 @@
 
     However, as will be further discussed in the results section, this freezing and unfreezing procedure has to be handled with care, as it can lead to very bad results if the freezing is too long while an ADAM optimizer is used. This is due to the fact that the moving averages of the gradients are updated with biased estimates of the gradients during the frozen phase.
 
-    \paragraph*{Ensembling}
-    A very important part of our approach was to ensemble the models. This led to a significant improvement in the results as we will see in the results section. We used a simple averaging method to ensemble XX models. A tuning of the weights of the models in the ensemble has been done on the validation set.
-
-    We tried different ensembling methods, such as the Condorcet fusion method and the XX method, but they did not lead to better results than the simple averaging method. We will discuss these methods in Section \ref{sec:non-conclusive}.
-
     \subsection{Trained models' hyperparameters}
     We present here the hyperparameters of the models we used to train the graph and text encoders and that are all part of the ensemble.
 
@@ -199,7 +224,7 @@
     \label{sec:non-conclusive}
     \subsection{PathNN}
     \subsection{Condorcet Fusion}
-    \subsection{Alternate training procedure}
+    \subsection{Alternate training procedures}
 
     \newpage
 
