@@ -1,4 +1,4 @@
-\documentclass[switch, 12pt]{article}
+\documentclass[switch, 11pt]{article}
 
 \usepackage{preprint}
 \usepackage{amsmath, amsthm, amssymb, amsfonts}
@@ -39,9 +39,9 @@
 
 \bibliographystyle{unsrtnat}
 \setlist[enumerate,1]{leftmargin=2em}
-\titlespacing\section{0pt}{12pt plus 3pt minus 3pt}{1pt plus 1pt minus 1pt}
-\titlespacing\subsection{0pt}{10pt plus 3pt minus 3pt}{1pt plus 1pt minus 1pt}
-\titlespacing\subsubsection{0pt}{8pt plus 3pt minus 3pt}{1pt plus 1pt minus 1pt}
+\titlespacing\section{0pt}{3pt plus 3pt minus 3pt}{1pt plus 1pt minus 1pt}
+\titlespacing\subsection{0pt}{2pt plus 3pt minus 3pt}{1pt plus 1pt minus 1pt}
+
 \renewcommand*{\Authfont}{\bfseries}
 
 \newcommand{\R}{\mathbb{R}}
@@ -170,6 +170,12 @@
 
     Since we optimized the weights on the validation set, we thought this simple weighted average would avoid overfitting the weights to the validation set. In practice, we found that we did overfit a bit and so we submitted different solutions with different weights to the leaderboard to find some weights that generalize well.
 
+    \subsection{Implementation details}
+
+    All the implementations were done using the pytorch and pytorch-geometric libraries. Let's detail in the following the main implementation details of the models.
+    \paragraph*{DiffPool implementation for batch processing: } In the diffpool model, the size of the variables $S$ and $Z$ are not fixed, and depend on the number of nodes of the graph. For the first diffpool layer, we cannot know in advance the number of nodes which does not allow us to use batch processing. However for the next layers, the graphs are coarsened to a fixed size, which allows us to use batch processing. Distinguishing the first layer from the others allowed significant speedups in the training process.
+
+
 
     \section{Training}
 
@@ -213,26 +219,21 @@
     \end{align*}
     where $\gamma$ is a scaling factor, $\alpha_{n}^{j}$ and $\alpha_{p}^{i}$ are linear weights for the negative and positive pairs, and $\Delta_{n}$ and $\Delta_{p}$ are the margins for the negative and positive pairs.
 
-    \subsection{Training Procedure and implementation details}
-    We mainly used the PyTorch library to implement the models. Let's detail in the following the main implementation details of the models.
-    \paragraph*{DiffPool implementation for batch processing: } We can easily batch process graphs with different sizes using the DiffPool method. [TODO]
+    \subsection{Training Procedure}
+    \paragraph*{Optimizers and Learning Rate Schedulers:} We mainly used the Adam optimizer with a starting learning rate of $10^{-4}$. We did not use weight decay, as we found that it slowed down the training process, and that we had no overfitting issues.
 
-    \paragraph*{Optimizers and Learning Rate Schedulers: } We mainly used the Adam optimizer with a starting learning rate of $10^{-4}$.
-    To automatically decrease the learning rate, we used a scheduler. More specifically, we fixed the learning rate to $10^{-4}$ for the first 10 epochs, and then decreased it by a factor of 0.05 at every epoch until the 100th. We then fixed the learning rate to the value it had at epoch 100 for the rest of the training.
+    To automatically decrease the learning rate, we used a scheduler. More specifically, we fixed the learning rate to $10^{-4}$ for the first 5 to 10 epochs, and then decreased it geometrically with a factor 0.95 at every epoch. The goal is to have a learning rate of approximately $10^{-6}$ at the end of the training process. We noted that the scheduling of the learning rate was crucial to the quick convergence of the models.
 
-    \paragraph*{Freezing and Unfreezing}
-    We used a two-step training procedure. We first trained the graph encoder for 5 epochs with the text encoder frozen. After that, we trained the whole model for 100 epochs. This allowed the graph encoder to learn a good representation of the graphs before the text encoder starts to learn and gave noticeable improvements in the results and convergence speed.
+    \paragraph*{Freezing and Unfreezing:}
+    We used a two-step training procedure. We first trained the graph encoder for the first 3 to 5 epochs with the text encoder parameters frozen. After that, we trained the whole model until we reached around 100 epochs.
+
+    This allowed the graph encoder to learn a good representation of the graphs before the text encoder starts to learn and gave noticeable improvements in the results and convergence speed. We believe this is because training the text encoder while the graph encoder is in a very suboptimal state leads to losing the pretrained sentence embeddings capabilities of the text encoder.
 
     However, as will be further discussed in the results section, this freezing and unfreezing procedure has to be handled with care, as it can lead to very bad results if the freezing is too long while an ADAM optimizer is used. This is due to the fact that the moving averages of the gradients are updated with biased estimates of the gradients during the frozen phase.
 
-
-
-    \footnotetext[1]{MPL: Message Passing Layer, the dimensions of the messages in the GNNs}
-    \footnotetext[2]{The dimensions of the linear layers after the GNNs}
-    \footnotetext[3]{Number of attention heads in each GAT layer}
 \end{multicols}
 
-\begin{table}[H]
+\begin{table}
     \begin{center}
         \resizebox{\columnwidth}{!}{
             \begin{tabular}{|c|c|c|c|c|c|c|c|c|c|}
@@ -252,12 +253,35 @@
             \end{tabular}
         }
     \end{center}
-    \label{tab:models}
     \caption{Models hyperparameters.}
+    \label{tab:models}
 \end{table}
+
+\footnotetext[1]{MPL: Message Passing Layer, the dimensions of the messages in the GNNs}
+\footnotetext[2]{The dimensions of the linear layers after the GNNs}
+\footnotetext[3]{[TODO OTHER FOOTNOTES] Number of attention heads in each GAT layer}
+
 \begin{multicols}{2}
+
     \section{Results}
+
+    We present in figures \ref{fig:loss} and \ref{fig:score} the training and validation loss for three of the models we trained. The steps referer to the number of gradient updates, which is equivalent to the number of epochs times the number of batches in an epoch. The models were trained with a batch size of 64, and the training and validation sets were shuffled at the beginning of each epoch. We clear see on the loss plot the time when the text encoder was unfrozen.
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=0.8\columnwidth]{figures/loss.png}
+        \caption{Training and validation loss of three models.}
+        \label{fig:loss}
+    \end{figure}
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=0.8\columnwidth]{figures/score.png}
+        \caption{Score on the validation set of three models.}
+        \label{fig:score}
+    \end{figure}
+
     \subsection{Results per trained model and discussion}
+
     We present on table \ref{tab:models} a detailed summary of the models we trained and the scores we obtained on the validation set. It has to be noted that all the models were trained with the same text encoder, which is a pretrained MiniLM-L6 model. As we can also see, all the models used a GAT-layered DiffPool model as the graph encoder, except for the first model which used a simple GAT model. This last model is also the one that yielded the worst results.
 
     A striking observation is that we obtained the best results with the DiffPool-large model, which is the model that has, by far, the most parameters. While this result is not surprising knowing the scalability of such models, it is still interesting to note that, in all the other models, the number of parameters seems to be unrelated to the performance of the model. More specifically, the DiffPool-linear model, which is one of the smallest models, yielded the second best results.
@@ -268,7 +292,11 @@
 
 
     \subsection{Global results after ensembling}
+    After ensembling the models and tuning the ensemble weights, we obtained a score of $0.9423$ on the validation set. This is a significant improvement over the best single model which had a score of $0.8932$. Since we were beggining to overfit the validation set, we submitted different solutions with different weights to the leaderboard to find some weights that generalized well. Finally obtained a score of $0.9442$ on the leaderboard. The differences between the scores on the validation set and the leaderboard can also be explained by the fact that at this point, the errors are caused by very out of distribution samples, which may not be equally distributed between the validation set and the test set.
+
     \subsection{Execution time}
+
+    Execution time was a major concern for us, as we had limited computational resources. We quickly decided to use a small language model to encode the text, which greatly reduced the training time of the baseline model. From there, training time was globally proportional to the number of parameters of the graph encoder. For a basic diffpool model with around 10 million parameters, and a batch size of 64, an epoch took around 4 minutes to train, thus allowing us to train some models for 100 epochs in 7 hours.
 
     \section{Other non-conclusive approaches}
     \label{sec:non-conclusive}
@@ -299,10 +327,27 @@
 
     \end{enumerate}
 
+    \section{Conclusion}
+
+     [TODO] The main takeaway from this challenge is the importance of ensembling in classification problems. We also note that computational resources are a major bottleneck, as were are limited to small language models and small graph encoders. We saw that best results were obtained with the biggest model.
     \newpage
 
     \bibliography{bibliography}
 
 \end{multicols}
+
+\newpage
+\appendix
+
+\vspace{5mm}
+\begin{center}
+    {\Large \bfseries Appendix} \\
+\end{center}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\columnwidth]{figures/architecture.png}
+    \caption{Simplified model architecture. We clearly see the embedding part on the right and the pooling part on the left. In a real model, this architecture would be repeated multiple times in the vertical direction.}
+    \label{fig:architecture}
+\end{figure}
 
 \end{document}
