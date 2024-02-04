@@ -40,6 +40,10 @@ def max_norm(similarities):
     return similarities / similarities.max(axis=2)[:, :, None]
 
 
+def identity_norm(similarities):
+    return similarities
+
+
 def condorcet_fuse(similarities, weights=None, norm=strange_norm):
     if weights is None:
         weights = np.ones(similarities.shape[0])
