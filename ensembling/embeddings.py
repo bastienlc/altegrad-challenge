@@ -11,7 +11,6 @@ def compute_embeddings(models, tokenizers, saved_paths, skip, split="test"):
         zip(models, tokenizers, saved_paths)
     ):
         if skip[k]:
-            print(f"Skipping model {k+1}")
             continue
         else:
             print(f"Processing model {k+1}")

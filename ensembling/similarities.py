@@ -5,7 +5,6 @@ import torch
 def compute_similarities(metrics, skip, split):
     for k, metric in enumerate(metrics):
         if skip[k]:
-            print(f"Skipping model {k+1}")
             continue
         else:
             print(f"Processing model {k+1}")
