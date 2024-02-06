@@ -2,7 +2,5 @@
 data/**
 outputs/
 runs/
-**/temp/**
 __pycache__
-tune/
 .cache/

@@ -1,5 +1,4 @@
 import torch.nn as nn
-from torch_geometric.nn import global_mean_pool
 from torch_geometric.nn.models import GAT
 
 

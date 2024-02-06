@@ -1,1 +1,0 @@
-from .pathnn import PathNNModel

@@ -8,9 +8,6 @@ from torch.utils.data import Dataset as TorchDataset
 from torch_geometric.data import Data, Dataset
 from tqdm import tqdm
 
-from .graphormer import add_shortest_distances
-from .pathnn import add_pathnn_data
-
 
 class GraphTextDataset(Dataset):
     def __init__(
@@ -21,7 +18,6 @@ class GraphTextDataset(Dataset):
         tokenizer=None,
         transform=None,
         pre_transform=None,
-        features=[],
     ):
         self.root = root
         self.gt = gt
@@ -32,7 +28,6 @@ class GraphTextDataset(Dataset):
         )
         self.description = self.description.set_index(0).to_dict()
         self.cids = list(self.description[1].keys())
-        self.features = features
 
         self.idx_to_cid = {}
         i = 0
@@ -55,10 +50,7 @@ class GraphTextDataset(Dataset):
 
     @property
     def processed_dir(self) -> str:
-        special = ""
-        for feature in self.features:
-            special += "_" + feature
-        return osp.join(self.root, "processed" + special + "/", self.split)
+        return osp.join(self.root, "processed/", self.split)
 
     def download(self):
         pass
@@ -107,11 +99,6 @@ class GraphTextDataset(Dataset):
                 attention_mask=text_input["attention_mask"],
             )
 
-            if "pathnn" in self.features:
-                data = add_pathnn_data(data)
-            if "shortest_distances" in self.features:
-                data = add_shortest_distances(data)
-
             torch.save(data, osp.join(self.processed_dir, "data_{}.pt".format(cid)))
             i += 1
 
@@ -130,9 +117,7 @@ class GraphTextDataset(Dataset):
 
 
 class GraphDataset(Dataset):
-    def __init__(
-        self, root, gt, split, transform=None, pre_transform=None, features=[]
-    ):
+    def __init__(self, root, gt, split, transform=None, pre_transform=None):
         self.root = root
         self.gt = gt
         self.split = split
@@ -140,7 +125,6 @@ class GraphDataset(Dataset):
             os.path.join(self.root, split + ".txt"), sep="\t", header=None
         )
         self.cids = self.description[0].tolist()
-        self.features = features
 
         self.idx_to_cid = {}
         i = 0
@@ -163,10 +147,7 @@ class GraphDataset(Dataset):
 
     @property
     def processed_dir(self) -> str:
-        special = ""
-        for feature in self.features:
-            special += "_" + feature
-        return osp.join(self.root, "processed" + special + "/", self.split)
+        return osp.join(self.root, "processed/", self.split)
 
     def download(self):
         pass
@@ -201,11 +182,6 @@ class GraphDataset(Dataset):
             cid = int(raw_path.split("/")[-1][:-6])
             edge_index, x = self.process_graph(raw_path)
             data = Data(x=x, edge_index=edge_index)
-
-            if "pathnn" in self.features:
-                data = add_pathnn_data(data)
-            if "shortest_distances" in self.features:
-                data = add_shortest_distances(data)
 
             torch.save(data, osp.join(self.processed_dir, "data_{}.pt".format(cid)))
             i += 1
