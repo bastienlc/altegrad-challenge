@@ -1,7 +1,7 @@
 import torch
 
 
-def get_segment_indices(batch):
+def get_segment_indices(batch: torch.Tensor):
     """
     Given a batch, returns a list of tuples (a, b) where a is the index of the first element of the segment and b is the index of the first element of the next segment.
     """
@@ -18,7 +18,7 @@ def get_segment_indices(batch):
     return output
 
 
-def batch_diffpool(S, Z, A):
+def batch_diffpool(S: torch.Tensor, Z: torch.Tensor, A: torch.Tensor):
     """
     Computes diffpool operations for batches of S, Z and A. Using this function supposes that all graphs in the batch have the same number of nodes. This is the case for all diffpool layers except the first one.
 
@@ -47,7 +47,9 @@ def batch_diffpool(S, Z, A):
     return X_out.reshape(batch_size * size, -1), torch.block_diag(*A_out)
 
 
-def ankward_diffpool(S, Z, A, batch):
+def ankward_diffpool(
+    S: torch.Tensor, Z: torch.Tensor, A: torch.Tensor, batch: torch.Tensor
+):
     """
     Computes diffpool operations for batched S, Z and A. Using this function supposes that all graphs in the batch have different numbers of nodes and have been batched together. This is the case for the first diffpool layer.
 
@@ -82,7 +84,7 @@ def ankward_diffpool(S, Z, A, batch):
     return X_out, A_out
 
 
-def extract_blocks(A, size, batch_size):
+def extract_blocks(A: torch.Tensor, size: int, batch_size: int):
     """
     A: (batch_size * size x batch_size * size)
     Returns: (batch_size x size x size)

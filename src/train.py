@@ -3,10 +3,10 @@ from torch import optim
 from torch.optim.lr_scheduler import MultiplicativeLR, SequentialLR
 from transformers import AutoTokenizer
 
-from .load import load_dataset
-from .metrics import Metrics
-from .models.diffpool import DiffPoolModel
-from .utils import train
+from load import load_dataset
+from metrics import Metrics
+from models import DiffPoolModel
+from utils import train
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

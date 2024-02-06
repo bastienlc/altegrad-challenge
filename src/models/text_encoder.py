@@ -20,7 +20,7 @@ def mean_pooling(embeddings: torch.Tensor, attention_mask: torch.Tensor):
 
 
 class TextEncoder(nn.Module):
-    def __init__(self, model_name):
+    def __init__(self, model_name: str):
         super(TextEncoder, self).__init__()
         self.use_sentence_transformer = model_name in [
             "sentence-transformers/all-MiniLM-L6-v2"
@@ -29,7 +29,7 @@ class TextEncoder(nn.Module):
             model_name,
         )
 
-    def forward(self, input_ids, attention_mask):
+    def forward(self, input_ids: torch.Tensor, attention_mask: torch.Tensor):
         encoded_text = self.model(input_ids, attention_mask=attention_mask)
 
         if self.use_sentence_transformer:

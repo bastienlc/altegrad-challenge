@@ -11,7 +11,7 @@ from torch.utils.tensorboard import SummaryWriter
 from torch_geometric.loader import DataLoader as GeometricDataLoader
 from torch_geometric.nn import summary
 
-from .metrics import Metrics
+from metrics import Metrics
 
 # Remove warning when using the tokenizer to preprocess the data
 os.environ["TOKENIZERS_PARALLELISM"] = "false"

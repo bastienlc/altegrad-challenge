@@ -1,10 +1,12 @@
 from functools import cmp_to_key
+from typing import Callable, Union
 
 import numpy as np
+import torch
 from tqdm import tqdm
 
 
-def rank_norm(similarities):
+def rank_norm(similarities: torch.Tensor):
     N = similarities.shape[1]
 
     ranks = N - similarities.argsort(axis=2).argsort(axis=2)
@@ -12,39 +14,43 @@ def rank_norm(similarities):
     return 1 - (ranks - 1) / N
 
 
-def strange_norm(similarities):
+def strange_norm(similarities: torch.Tensor):
     return (similarities - similarities.min(axis=1)[:, None, :]) / (
         similarities.max(axis=1)[:, None, :] - similarities.min(axis=1)[:, None, :]
     )
 
 
-def min_max_norm(similarities):
+def min_max_norm(similarities: torch.Tensor):
     return (similarities - similarities.min(axis=2)[:, :, None]) / (
         similarities.max(axis=2)[:, :, None] - similarities.min(axis=2)[:, :, None]
     )
 
 
-def sum_norm(similarities):
+def sum_norm(similarities: torch.Tensor):
     return (similarities - similarities.min(axis=2)[:, :, None]) / (
         similarities.sum(axis=2)[:, :, None] - similarities.min(axis=2)[:, :, None]
     )
 
 
-def zmuv_norm(similarities):
+def zmuv_norm(similarities: torch.Tensor):
     return (similarities - similarities.mean(axis=2)[:, :, None]) / similarities.std(
         axis=2
     )[:, :, None]
 
 
-def max_norm(similarities):
+def max_norm(similarities: torch.Tensor):
     return similarities / similarities.max(axis=2)[:, :, None]
 
 
-def identity_norm(similarities):
+def identity_norm(similarities: torch.Tensor):
     return similarities
 
 
-def condorcet_fuse(similarities, weights=None, norm=strange_norm):
+def condorcet_fuse(
+    similarities: torch.Tensor,
+    weights: Union[np.ndarray, None] = None,
+    norm: Callable = strange_norm,
+):
     if weights is None:
         weights = np.ones(similarities.shape[0])
 
@@ -81,7 +87,11 @@ def condorcet_fuse(similarities, weights=None, norm=strange_norm):
     return aggregation
 
 
-def mean_fuse(similarities, weights=None, norm=strange_norm):
+def mean_fuse(
+    similarities: torch.Tensor,
+    weights: Union[np.ndarray, None] = None,
+    norm: Callable = strange_norm,
+):
     if weights is None:
         weights = np.ones(similarities.shape[0])
 
@@ -90,7 +100,12 @@ def mean_fuse(similarities, weights=None, norm=strange_norm):
     return np.average(similarities, axis=0, weights=weights)
 
 
-def reciprocal_rank_fuse(similarities, weights=None, k=10, norm=strange_norm):
+def reciprocal_rank_fuse(
+    similarities: torch.Tensor,
+    weights: Union[np.ndarray, None] = None,
+    norm: Callable = strange_norm,
+    k: int = 10,
+):
     if weights is None:
         weights = np.ones(similarities.shape[0])
 
@@ -109,7 +124,11 @@ def reciprocal_rank_fuse(similarities, weights=None, k=10, norm=strange_norm):
     return aggregation
 
 
-def prod_fuse(similarities, weights=None, norm=strange_norm):
+def prod_fuse(
+    similarities: torch.Tensor,
+    weights: Union[np.ndarray, None] = None,
+    norm: Callable = strange_norm,
+):
     if weights is None:
         weights = np.ones(similarities.shape[0])
 

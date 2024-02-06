@@ -1,3 +1,6 @@
+from typing import List
+
+import torch
 import torch.nn as nn
 from torch_geometric.nn.models import GAT
 
@@ -6,17 +9,16 @@ from torch_geometric.nn.models import GAT
 class GATEncoder(nn.Module):
     def __init__(
         self,
-        d_features,
-        d_out,
-        d_hidden_dim=600,
-        num_layers=3,
-        num_heads=3,
-        d_linear_layers=[
+        d_features: int,
+        d_out: int,
+        d_hidden_dim: int = 600,
+        num_layers: int = 3,
+        num_heads: int = 3,
+        d_linear_layers: List[int] = [
             1000,
-            500,
         ],  # In addition to the first layer d_hidden_dim -> d_linear_layers[0] and the last layer d_linear_layers[-1] -> d_out
-        dropout=0.1,
-        activation="ReLU",
+        dropout: float = 0.1,
+        activation: str = "ReLU",
     ):
         super(GATEncoder, self).__init__()
         self.num_node_features = d_features
@@ -53,7 +55,7 @@ class GATEncoder(nn.Module):
         else:
             self.activation = activation
 
-    def forward(self, x, adj, batch):
+    def forward(self, x: torch.Tensor, adj: torch.Tensor, batch: torch.Tensor):
         edge_index = adj.nonzero().t().contiguous()
 
         output = self.gat(x, edge_index, batch=batch)

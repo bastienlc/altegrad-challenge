@@ -1,4 +1,8 @@
+from typing import List
+
+import torch
 from torch import nn
+from torch_geometric.data import Batch
 from torch_geometric.nn import global_mean_pool
 from torch_geometric.nn.models import GAT
 
@@ -8,17 +12,16 @@ from ..text_encoder import TextEncoder
 class GATEncoder(nn.Module):
     def __init__(
         self,
-        d_features,
-        d_out,
-        d_hidden_dim=600,
-        num_layers=3,
-        num_heads=3,
-        d_linear_layers=[
+        d_features: int,
+        d_out: int,
+        d_hidden_dim: int = 600,
+        num_layers: int = 3,
+        num_heads: int = 3,
+        d_linear_layers: List[int] = [
             1000,
-            500,
         ],  # In addition to the first layer d_hidden_dim -> d_linear_layers[0] and the last layer d_linear_layers[-1] -> d_out
-        dropout=0.1,
-        activation="ReLU",
+        dropout: float = 0.1,
+        activation: str = "ReLU",
     ):
         super(GATEncoder, self).__init__()
         self.num_node_features = d_features
@@ -55,7 +58,7 @@ class GATEncoder(nn.Module):
         else:
             self.activation = activation
 
-    def forward(self, graph_batch):
+    def forward(self, graph_batch: Batch):
         x = graph_batch.x
         edge_index = graph_batch.edge_index
         batch = graph_batch.batch
@@ -75,17 +78,17 @@ class GATEncoder(nn.Module):
 class GATModel(nn.Module):
     def __init__(
         self,
-        model_name,
-        num_node_features,
-        nout,
-        d_hidden_dim=600,
-        num_layers=3,
-        num_heads=5,
-        d_linear_layers=[
+        model_name: str,
+        num_node_features: int,
+        nout: int,
+        d_hidden_dim: int = 600,
+        num_layers: int = 3,
+        num_heads: int = 5,
+        d_linear_layers: List[int] = [
             1000,
         ],
-        dropout=0.1,
-        activation="ReLU",
+        dropout: float = 0.1,
+        activation: str = "ReLU",
     ):
         super(GATModel, self).__init__()
         self.graph_encoder = GATEncoder(
@@ -100,7 +103,9 @@ class GATModel(nn.Module):
         )
         self.text_encoder = TextEncoder(model_name)
 
-    def forward(self, graph_batch, input_ids, attention_mask):
+    def forward(
+        self, graph_batch: Batch, input_ids: torch.Tensor, attention_mask: torch.Tensor
+    ):
         graph_encoded = self.graph_encoder(graph_batch)
         text_encoded = self.text_encoder(input_ids, attention_mask)
         return graph_encoded, text_encoded

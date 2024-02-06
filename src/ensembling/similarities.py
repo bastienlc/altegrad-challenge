@@ -1,8 +1,12 @@
+from typing import List
+
 import numpy as np
 import torch
 
+from ..metrics import Metrics
 
-def compute_similarities(metrics, skip, split):
+
+def compute_similarities(metrics: List[Metrics], skip: List[bool], split: List[str]):
     for k, metric in enumerate(metrics):
         if skip[k]:
             continue
@@ -21,7 +25,7 @@ def compute_similarities(metrics, skip, split):
         torch.save(similarity, f"./outputs/similarities/{split}/similarity{k}.pt")
 
 
-def load_similarities(split, models_indices):
+def load_similarities(split: str, models_indices: List[int]):
     similarities = []
     for k in models_indices:
         similarity = torch.load(f"./outputs/similarities/{split}/similarity{k}.pt")

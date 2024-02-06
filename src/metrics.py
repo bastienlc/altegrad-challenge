@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
-from pytorch_metric_learning.distances import CosineSimilarity
+from pytorch_metric_learning.distances import BaseDistance, CosineSimilarity
 from pytorch_metric_learning.losses import CircleLoss, ContrastiveLoss, PNPLoss
 from sklearn.metrics import label_ranking_average_precision_score
 from sklearn.metrics.pairwise import cosine_similarity
@@ -12,7 +12,7 @@ from torch_geometric.loader import DataLoader as GeometricDataLoader
 from tqdm import tqdm
 
 
-def cross_entropy_loss(v1, v2, **kwargs):
+def cross_entropy_loss(v1: torch.Tensor, v2: torch.Tensor, **kwargs):
     CEL = nn.CrossEntropyLoss(**kwargs)
     logits = torch.matmul(v1, torch.transpose(v2, 0, 1))
     labels = torch.arange(logits.shape[0], device=v1.device)
@@ -20,7 +20,12 @@ def cross_entropy_loss(v1, v2, **kwargs):
 
 
 def contrastive_loss(
-    v1, v2, pos_margin=1, neg_margin=0, distance=CosineSimilarity(), **kwargs
+    v1: torch.Tensor,
+    v2: torch.Tensor,
+    pos_margin: float = 1.0,
+    neg_margin: float = 0.0,
+    distance: BaseDistance = CosineSimilarity(),
+    **kwargs,
 ):
     CL = ContrastiveLoss(
         pos_margin=pos_margin,
@@ -32,26 +37,31 @@ def contrastive_loss(
     return CL(torch.cat((v1, v2)), torch.cat((labels, labels)))
 
 
-def pnp_loss(v1, v2, distance=CosineSimilarity(), **kwargs):
+def pnp_loss(
+    v1: torch.Tensor,
+    v2: torch.Tensor,
+    distance: BaseDistance = CosineSimilarity(),
+    **kwargs,
+):
     PNP = PNPLoss(distance=distance, **kwargs)
     labels = torch.arange(v1.shape[0], device=v1.device)
     return PNP(torch.cat((v1, v2)), torch.cat((labels, labels)))
 
 
-def circle_loss(v1, v2, m=0.1, gamma=1, distance=CosineSimilarity(), **kwargs):
+def circle_loss(
+    v1: torch.Tensor,
+    v2: torch.Tensor,
+    m: float = 0.1,
+    gamma: float = 1.0,
+    distance: BaseDistance = CosineSimilarity(),
+    **kwargs,
+):
     CL = CircleLoss(m=m, gamma=gamma, distance=distance, **kwargs)
     labels = torch.arange(v1.shape[0], device=v1.device)
     return CL(torch.cat((v1, v2)), torch.cat((labels, labels)))
 
 
 class Metrics:
-    """Class used to compute the loss and score of the model, and to generate the solutions based on these metrics.
-
-    Let's distinguish between two things :
-    - The similarity, which is a function that takes two tensors and returns a scalar describing how similar they are (1) or not (0).
-    - The loss, which takes a similarity matrix and true labels and returns a scalar describing how good the model is on this batch.
-    """
-
     def __init__(self, loss: Union[str, None] = None, **kwargs) -> None:
         if loss == None or loss == "cross_entropy":
             self.loss = lambda v1, v2: cross_entropy_loss(v1, v2, **kwargs)
@@ -75,9 +85,9 @@ class Metrics:
         device: torch.device = torch.device(
             "cuda" if torch.cuda.is_available() else "cpu"
         ),
-        return_loss=True,
-        return_score=True,
-        verbose=False,
+        return_loss: bool = True,
+        return_score: bool = True,
+        verbose: bool = False,
     ):
         model.eval()
 
@@ -126,7 +136,7 @@ class Metrics:
         self,
         graph_embeddings: torch.Tensor,
         text_embeddings: torch.Tensor,
-        save_to="solution.csv",
+        save_to: str = "solution.csv",
     ):
         similarity = self.similarity(text_embeddings, graph_embeddings)
 

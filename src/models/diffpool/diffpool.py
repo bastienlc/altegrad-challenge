@@ -1,5 +1,8 @@
+from typing import List
+
 import torch
 import torch.nn as nn
+from torch_geometric.data import Batch
 from torch_geometric.nn import global_mean_pool
 
 from models.text_encoder import TextEncoder
@@ -12,15 +15,15 @@ from .utils import ankward_diffpool, batch_diffpool, extract_blocks
 class DiffPoolEncoder(nn.Module):
     def __init__(
         self,
-        d_features,
-        d_out,
-        d_pooling_layers,
-        d_encoder_hidden_dims,
-        d_encoder_linear_layers,
-        d_encoder_num_heads,
-        d_encoder_num_layers,
-        d_linear,
-        dropout,
+        d_features: int,
+        d_out: int,
+        d_pooling_layers: List[int],
+        d_encoder_hidden_dims: List[int],
+        d_encoder_linear_layers: List[List[int]],
+        d_encoder_num_heads: List[int],
+        d_encoder_num_layers: List[int],
+        d_linear: int,
+        dropout: float,
     ):
         super(DiffPoolEncoder, self).__init__()
         self.pooling_sizes = d_pooling_layers
@@ -65,7 +68,7 @@ class DiffPoolEncoder(nn.Module):
             nn.Dropout(dropout),
         )
 
-    def forward(self, graph_batch):
+    def forward(self, graph_batch: Batch):
         X = graph_batch.x
         A = torch.zeros((X.shape[0], X.shape[0]), device=X.device)
         A[graph_batch.edge_index[0], graph_batch.edge_index[1]] = 1
@@ -116,16 +119,16 @@ class DiffPoolEncoder(nn.Module):
 class DiffPoolModel(nn.Module):
     def __init__(
         self,
-        model_name,
-        num_node_features,
-        nout,
-        d_pooling_layers=[15, 5, 1],
-        d_encoder_hidden_dims=[600, 600, 600],
-        d_encoder_linear_layers=[[300], [300], [300]],
-        d_encoder_num_heads=[3, 3, 3],
-        d_encoder_num_layers=[3, 3, 2],
-        d_linear=1000,
-        dropout=0.05,
+        model_name: str,
+        num_node_features: int,
+        nout: int,
+        d_pooling_layers: List[int] = [15, 5, 1],
+        d_encoder_hidden_dims: List[int] = [600, 600, 600],
+        d_encoder_linear_layers: List[List[int]] = [[300], [300], [300]],
+        d_encoder_num_heads: List[int] = [3, 3, 3],
+        d_encoder_num_layers: List[int] = [3, 3, 2],
+        d_linear: int = 1000,
+        dropout: float = 0.05,
     ):
         super(DiffPoolModel, self).__init__()
         self.graph_encoder = DiffPoolEncoder(
@@ -141,7 +144,9 @@ class DiffPoolModel(nn.Module):
         )
         self.text_encoder = TextEncoder(model_name)
 
-    def forward(self, graph_batch, input_ids, attention_mask):
+    def forward(
+        self, graph_batch: Batch, input_ids: torch.Tensor, attention_mask: torch.Tensor
+    ):
         graph_encoded = self.graph_encoder(graph_batch)
         text_encoded = self.text_encoder(input_ids, attention_mask)
         return graph_encoded, text_encoded

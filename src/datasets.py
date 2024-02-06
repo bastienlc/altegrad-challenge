@@ -1,5 +1,6 @@
 import os
 import os.path as osp
+from typing import Dict
 
 import numpy as np
 import pandas as pd
@@ -7,17 +8,16 @@ import torch
 from torch.utils.data import Dataset as TorchDataset
 from torch_geometric.data import Data, Dataset
 from tqdm import tqdm
+from transformers import PreTrainedTokenizer
 
 
 class GraphTextDataset(Dataset):
     def __init__(
         self,
-        root,
-        gt,
-        split,
-        tokenizer=None,
-        transform=None,
-        pre_transform=None,
+        root: str,
+        gt: Dict,
+        split: str,
+        tokenizer: PreTrainedTokenizer,
     ):
         self.root = root
         self.gt = gt
@@ -34,7 +34,7 @@ class GraphTextDataset(Dataset):
         for cid in self.cids:
             self.idx_to_cid[i] = cid
             i += 1
-        super(GraphTextDataset, self).__init__(root, transform, pre_transform)
+        super(GraphTextDataset, self).__init__(root)
 
     @property
     def raw_file_names(self):
@@ -117,7 +117,7 @@ class GraphTextDataset(Dataset):
 
 
 class GraphDataset(Dataset):
-    def __init__(self, root, gt, split, transform=None, pre_transform=None):
+    def __init__(self, root: str, gt: Dict, split: str):
         self.root = root
         self.gt = gt
         self.split = split
@@ -131,7 +131,7 @@ class GraphDataset(Dataset):
         for cid in self.cids:
             self.idx_to_cid[i] = cid
             i += 1
-        super(GraphDataset, self).__init__(root, transform, pre_transform)
+        super(GraphDataset, self).__init__(root)
 
     @property
     def raw_file_names(self):
@@ -204,7 +204,9 @@ class GraphDataset(Dataset):
 
 
 class TextDataset(TorchDataset):
-    def __init__(self, file_path, tokenizer, max_length=256):
+    def __init__(
+        self, file_path: str, tokenizer: PreTrainedTokenizer, max_length: int = 256
+    ):
         self.tokenizer = tokenizer
         self.max_length = max_length
         self.sentences = self.load_sentences(file_path)

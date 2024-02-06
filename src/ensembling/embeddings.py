@@ -1,4 +1,7 @@
+from typing import List
+
 import torch
+from transformers import PreTrainedTokenizer
 
 from load import load_dataset, load_test_dataset
 from utils import get_test_embeddings, get_train_embeddings
@@ -6,7 +9,14 @@ from utils import get_test_embeddings, get_train_embeddings
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-def compute_embeddings(models, tokenizers, saved_paths, skip, split="test"):
+def compute_embeddings(
+    models: List[torch.nn.Module],
+    tokenizers: List[PreTrainedTokenizer],
+    saved_paths: List[str],
+    skip: List[bool],
+    split: str,
+    device: torch.device = device,
+):
     for k, (model, tokenizer, saved_path) in enumerate(
         zip(models, tokenizers, saved_paths)
     ):
